@@ -15,8 +15,9 @@ import Announcements from './pages/Announcements';
 import Contact from './pages/Contact';
 import Departments from './pages/Departments';
 import ProtectedRoute from './components/ProtectedRoute';
-import { User, NewsItem, Leader, Announcement } from './types';
+import { User, NewsItem, Leader, Announcement, Department } from './types';
 import { API } from './services/api';
+import { DEPARTMENTS as INITIAL_DEPTS } from './constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
 
@@ -33,17 +35,19 @@ const App: React.FC = () => {
         const savedUser = localStorage.getItem('rasa_user');
         if (savedUser) setUser(JSON.parse(savedUser));
 
-        const [newsData, leadersData, membersData, announcementsData] = await Promise.all([
+        const [newsData, leadersData, membersData, announcementsData, deptsData] = await Promise.all([
           API.news.getAll(),
           API.leaders.getAll(),
           API.members.getAll(),
-          API.announcements.getAll()
+          API.announcements.getAll(),
+          API.departments.getAll()
         ]);
 
         setNews(newsData);
         setLeaders(leadersData);
         setMembers(membersData);
         setAnnouncements(announcementsData);
+        setDepartments(deptsData.length > 0 ? deptsData : INITIAL_DEPTS);
       } catch (err) {
         console.error('Failed to boot system:', err);
       } finally {
@@ -76,7 +80,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar user={user} departments={departments} onLogout={handleLogout} />
       
       <main className="flex-grow">
         <AnimatePresence mode="wait">
@@ -88,8 +92,8 @@ const App: React.FC = () => {
             <Route path="/news/:id" element={<NewsDetail news={news} />} />
             <Route path="/announcements" element={<Announcements announcements={announcements} />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/departments" element={<Departments />} />
-            <Route path="/departments/:id" element={<Departments />} />
+            <Route path="/departments" element={<Departments departments={departments} />} />
+            <Route path="/departments/:id" element={<Departments departments={departments} />} />
             
             <Route 
               path="/dashboard" 
@@ -109,16 +113,17 @@ const App: React.FC = () => {
                     news={news} 
                     leaders={leaders}
                     announcements={announcements}
+                    depts={departments}
                     onUpdateNews={setNews} 
                     onUpdateLeaders={setLeaders} 
                     onUpdateMembers={setMembers}
                     onUpdateAnnouncements={setAnnouncements}
+                    onUpdateDepartments={setDepartments}
                   />
                 </ProtectedRoute>
               } 
             />
 
-            {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>

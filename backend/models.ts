@@ -36,6 +36,8 @@ const DepartmentSchema = new Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
   icon: { type: String, required: true },
+  image: { type: String },
+  category: { type: String, default: 'Ministry' },
   details: { type: String, required: true },
   activities: [{ type: String }]
 });

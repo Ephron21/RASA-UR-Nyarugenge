@@ -7,7 +7,11 @@ import {
   Users, Handshake, Globe, Info, Mail, 
   Activity, Star, Flame, Zap, Mic, Cross, CheckCircle, ArrowRight, Sparkles
 } from 'lucide-react';
-import { DEPARTMENTS } from '../constants';
+import { Department } from '../types';
+
+interface DepartmentsProps {
+  departments: Department[];
+}
 
 const IconMap: Record<string, any> = {
   Flame: Flame,
@@ -22,11 +26,11 @@ const IconMap: Record<string, any> = {
   Handshake: Handshake
 };
 
-const Departments: React.FC = () => {
+const Departments: React.FC<DepartmentsProps> = ({ departments }) => {
   const { id } = useParams<{ id: string }>();
   
   // Find the selected department or default to first one if on main listing
-  const activeDept = DEPARTMENTS.find(d => d.id === id) || null;
+  const activeDept = departments.find(d => d.id === id) || null;
 
   return (
     <div className="min-h-screen pt-32 pb-20 bg-white">
@@ -42,7 +46,7 @@ const Departments: React.FC = () => {
           >
             All Departments
           </Link>
-          {DEPARTMENTS.map(dept => (
+          {departments.map(dept => (
             <Link 
               key={dept.id}
               to={`/departments/${dept.id}`}
@@ -68,7 +72,7 @@ const Departments: React.FC = () => {
                 <h1 className="text-5xl md:text-7xl font-bold font-serif italic text-gray-900">RASA <span className="text-cyan-500">Ministries</span></h1>
                 <p className="text-gray-500 max-w-2xl mx-auto text-lg font-medium">Discover your place of service within our diverse range of campus departments.</p>
               </div>
-              {DEPARTMENTS.map((dept, i) => {
+              {departments.map((dept, i) => {
                 const Icon = IconMap[dept.icon] || Info;
                 return (
                   <motion.div 
@@ -83,7 +87,7 @@ const Departments: React.FC = () => {
                     </div>
                     <div className="space-y-3">
                       <h3 className="text-2xl font-black text-gray-900">{dept.name}</h3>
-                      <p className="text-gray-500 text-sm leading-relaxed">{dept.description}</p>
+                      <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{dept.description}</p>
                     </div>
                     <Link 
                       to={`/departments/${dept.id}`} 
@@ -94,6 +98,9 @@ const Departments: React.FC = () => {
                   </motion.div>
                 );
               })}
+              {departments.length === 0 && (
+                <div className="col-span-3 py-20 text-center text-gray-400 italic">No ministries have been added yet.</div>
+              )}
             </motion.div>
           ) : (
             <motion.div 
@@ -107,13 +114,13 @@ const Departments: React.FC = () => {
               <div className="lg:col-span-7 space-y-12">
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-3 px-6 py-2 bg-cyan-50 rounded-full text-cyan-600 font-black text-[10px] uppercase tracking-[0.4em]">
-                    <Sparkles size={14} /> Official RASA Department
+                    <Sparkles size={14} /> {activeDept.category || 'Official RASA Department'}
                   </div>
                   <h2 className="text-6xl font-bold font-serif italic text-gray-900 leading-tight">
                     {activeDept.name}
                   </h2>
                   <p className="text-xl text-gray-500 leading-relaxed font-light italic border-l-4 border-cyan-500 pl-8 py-2">
-                    {activeDept.details}
+                    {activeDept.details || activeDept.description}
                   </p>
                 </div>
 
@@ -123,12 +130,16 @@ const Departments: React.FC = () => {
                       <Zap size={18} className="text-cyan-500" /> Core Activities
                     </h4>
                     <ul className="space-y-4">
-                      {activeDept.activities.map((act, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <CheckCircle className="text-cyan-500 shrink-0 mt-1" size={16} />
-                          <span className="font-bold text-gray-700 text-sm">{act}</span>
-                        </li>
-                      ))}
+                      {activeDept.activities && activeDept.activities.length > 0 ? (
+                        activeDept.activities.map((act, i) => (
+                          <li key={i} className="flex items-start gap-3">
+                            <CheckCircle className="text-cyan-500 shrink-0 mt-1" size={16} />
+                            <span className="font-bold text-gray-700 text-sm">{act}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-400">Activity list coming soon.</p>
+                      )}
                     </ul>
                   </div>
                   <div className="p-8 bg-cyan-900 text-white rounded-[2.5rem] flex flex-col justify-center items-center text-center space-y-4">
@@ -144,9 +155,9 @@ const Departments: React.FC = () => {
 
               {/* Sidebar Info */}
               <div className="lg:col-span-5 space-y-8">
-                <div className="relative aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl group border-8 border-white">
+                <div className="relative aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl group border-8 border-white bg-gray-100">
                   <img 
-                    src={`https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=2064&auto=format&fit=crop`} 
+                    src={activeDept.image || `https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=2064&auto=format&fit=crop`} 
                     alt={activeDept.name} 
                     className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000"
                   />
@@ -167,7 +178,7 @@ const Departments: React.FC = () => {
                       <p className="text-xs text-gray-500">Appointed for 2024/2025</p>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500 leading-relaxed font-medium">"Our vision in this department is to ensure that every student discovers their divine purpose while excelling in their academics."</p>
+                  <p className="text-sm text-gray-500 leading-relaxed font-medium italic">"Our vision in this department is to ensure that every student discovers their divine purpose while excelling in their academics."</p>
                 </div>
               </div>
             </motion.div>

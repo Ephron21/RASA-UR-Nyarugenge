@@ -81,6 +81,36 @@ app.delete('/api/announcements/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Deletion failed' }); }
 });
 
+// DEPARTMENTS MANAGEMENT
+app.get('/api/departments', async (req, res) => {
+  try {
+    const departments = await Department.find().sort({ name: 1 });
+    res.json(departments);
+  } catch (err) { res.status(500).json({ error: 'Failed to fetch departments' }); }
+});
+
+app.post('/api/departments', async (req, res) => {
+  try {
+    const dept = new Department(req.body);
+    await dept.save();
+    res.status(201).json(dept);
+  } catch (err) { res.status(400).json({ error: 'Invalid data' }); }
+});
+
+app.put('/api/departments/:id', async (req, res) => {
+  try {
+    const updated = await Department.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: 'Update failed' }); }
+});
+
+app.delete('/api/departments/:id', async (req, res) => {
+  try {
+    await Department.findByIdAndDelete(req.params.id);
+    res.status(204).send();
+  } catch (err) { res.status(500).json({ error: 'Deletion failed' }); }
+});
+
 // MEMBERS MANAGEMENT & ROLES
 app.get('/api/members', async (req, res) => {
   try {
@@ -119,7 +149,47 @@ app.delete('/api/members/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Deletion failed' }); }
 });
 
-// AUTH & PASSWORD RESET
+// HOME CONFIG
+app.get('/api/home-config', async (req, res) => {
+  try {
+    let config = await HomeConfig.findOne();
+    if (!config) {
+      config = new HomeConfig({
+        heroTitle: 'Showing Christ to Academicians',
+        heroSubtitle: 'A journey of faith, service, and excellence.',
+        heroImageUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94',
+        motto: 'Agakiza, Urukundo, Umurimo'
+      });
+      await config.save();
+    }
+    res.json(config);
+  } catch (err) { res.status(500).json({ error: 'Config fetch failed' }); }
+});
+
+app.put('/api/home-config', async (req, res) => {
+  try {
+    const updated = await HomeConfig.findOneAndUpdate({}, req.body, { new: true, upsert: true });
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: 'Config update failed' }); }
+});
+
+// LEADERS
+app.get('/api/leaders', async (req, res) => {
+  try {
+    const leaders = await Leader.find().sort({ academicYear: -1 });
+    res.json(leaders);
+  } catch (err) { res.status(500).json({ error: 'Failed to fetch leaders' }); }
+});
+
+app.post('/api/leaders', async (req, res) => {
+  try {
+    const leader = new Leader(req.body);
+    await leader.save();
+    res.status(201).json(leader);
+  } catch (err) { res.status(400).json({ error: 'Invalid data' }); }
+});
+
+// AUTH & PASSWORD RESET (SIMULATED FOR NOW)
 app.post('/api/auth/forgot', async (req, res) => {
   const { email } = req.body;
   res.json({ success: true, message: 'OTP sent' });

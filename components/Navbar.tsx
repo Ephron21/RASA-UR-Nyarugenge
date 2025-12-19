@@ -3,15 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown, User as UserIcon, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NAV_LINKS, DEPARTMENTS } from '../constants';
-import { User } from '../types';
+import { NAV_LINKS } from '../constants';
+import { User, Department } from '../types';
 
 interface NavbarProps {
   user: User | null;
+  departments: Department[];
   onLogout: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showDepts, setShowDepts] = useState(false);
@@ -25,7 +26,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
   useEffect(() => setIsOpen(false), [location]);
 
-  // Determine if we are on a dark-themed page or section
   const isHomePage = location.pathname === '/';
   const navTextColor = (scrolled || !isHomePage) ? 'text-gray-900' : 'text-white';
 
@@ -88,7 +88,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-72 bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-100 p-3"
                 >
                   <div className="grid grid-cols-1 gap-1">
-                    {DEPARTMENTS.map((dept) => (
+                    {departments.map((dept) => (
                       <Link 
                         key={dept.id} 
                         to={`/departments/${dept.id}`}
@@ -98,6 +98,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                         {dept.name}
                       </Link>
                     ))}
+                    {departments.length === 0 && (
+                      <p className="p-4 text-xs text-gray-400 italic text-center">No ministries listed.</p>
+                    )}
                   </div>
                 </motion.div>
               )}

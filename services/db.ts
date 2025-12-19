@@ -30,7 +30,16 @@ const INITIAL_DATA: DatabaseSchema = {
     { id: 'a1', title: 'Mid-week Prayer Resumption', content: 'Weekly Wednesday prayers resume at the main chapel starting 6 PM.', date: '2024-03-24', status: 'Notice', color: 'bg-cyan-500', isActive: true }
   ],
   departments: [
-    { id: '1', name: 'Call on Jesus', description: 'The heartbeat of revival and corporate prayer.', icon: 'Flame', details: 'Dedicated to igniting spiritual revival.', activities: ['Weekly Revival Nights', 'Prayer Retreats'] }
+    { 
+      id: '1', 
+      name: 'Call on Jesus', 
+      description: 'The heartbeat of revival and corporate prayer.', 
+      icon: 'Flame', 
+      category: 'Spiritual Pillar',
+      image: 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000',
+      details: 'Call on Jesus is dedicated to igniting spiritual revival through intense, focused prayer and scripture-based meditation.', 
+      activities: ['Weekly Revival Nights', 'Prayer Retreats', 'Fasting Fellowships'] 
+    }
   ],
   contacts: [
     { id: 'c1', fullName: 'Test User', email: 'test@student.ac.rw', subject: 'Inquiry', message: 'Hello RASA, I would like to join the worship team.', date: new Date().toISOString(), isRead: false }
