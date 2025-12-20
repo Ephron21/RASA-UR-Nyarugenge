@@ -368,7 +368,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {leaders.map(l => (
                       <div key={l.id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center text-center space-y-4 group transition-all hover:shadow-xl relative">
-                        <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-gray-50 relative"><img src={l.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt={l.name} /></div>
+                        <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-gray-50 relative"><img src={l.image} className="w-full h-full object-cover transition-all duration-500" alt={l.name} /></div>
                         <div><p className="font-black text-gray-900">{l.name}</p><p className="text-xs text-cyan-600 font-bold uppercase tracking-widest">{l.position}</p></div>
                         <div className="flex gap-2 pt-2">
                           <button onClick={() => handleEditInitiation(l, 'leader')} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>

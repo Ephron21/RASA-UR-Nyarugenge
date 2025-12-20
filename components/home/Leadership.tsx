@@ -21,7 +21,7 @@ const Leadership: React.FC<LeadershipProps> = ({ leaders }) => {
       <div className="max-container px-4">
         <div className="text-center mb-24 space-y-6">
           <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full text-cyan-400 font-black text-[10px] uppercase tracking-[0.4em]">
-            <UserCheck size={14} /> The 2024 Council
+            <UserCheck size={14} /> The Council
           </div>
           <h2 className="text-6xl md:text-8xl font-bold font-serif italic tracking-tight">
             Our <span className="text-cyan-500">Stewards</span>
@@ -57,7 +57,7 @@ const Leadership: React.FC<LeadershipProps> = ({ leaders }) => {
                 transition={{ delay: idx * 0.05 }}
                 className="group relative"
               >
-                <div className="relative aspect-[3/4] rounded-[3.5rem] overflow-hidden mb-8 border border-white/5 grayscale group-hover:grayscale-0 transition-all duration-1000 shadow-2xl bg-gray-900">
+                <div className="relative aspect-[3/4] rounded-[3.5rem] overflow-hidden mb-8 border border-white/5 transition-all duration-1000 shadow-2xl bg-gray-900">
                   <img 
                     src={leader.image} 
                     alt={leader.name} 

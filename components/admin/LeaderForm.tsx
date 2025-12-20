@@ -13,7 +13,11 @@ interface LeaderFormProps {
   isSyncing: boolean;
 }
 
-const ACADEMIC_YEARS = ['2023-2024', '2024-2025', '2025-2026', '2026-2027'];
+// Generate years from 1997 to 2050
+const ACADEMIC_YEARS = Array.from({ length: 2050 - 1997 + 1 }, (_, i) => {
+  const startYear = 1997 + i;
+  return `${startYear}-${startYear + 1}`;
+}).reverse(); // Show latest years first
 
 const LeaderForm: React.FC<LeaderFormProps> = ({
   editingItem,
@@ -150,7 +154,7 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
           <div className="relative group">
             <select 
               name="academicYear" 
-              defaultValue={editingItem?.academicYear || ACADEMIC_YEARS[1]} 
+              defaultValue={editingItem?.academicYear || '2024-2025'} 
               className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all"
             >
               {ACADEMIC_YEARS.map(year => (
