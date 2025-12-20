@@ -15,6 +15,7 @@ import Announcements from './pages/Announcements';
 import Contact from './pages/Contact';
 import Departments from './pages/Departments';
 import Donations from './pages/Donations';
+import About from './pages/About';
 import ProtectedRoute from './components/ProtectedRoute';
 import { User, NewsItem, Leader, Announcement, Department } from './types';
 import { API } from './services/api';
@@ -88,7 +89,7 @@ const App: React.FC = () => {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Home news={news} leaders={leaders} />} />
             <Route path="/portal" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} /> : <Portal onLogin={handleLogin} />} />
-            <Route path="/about" element={<AboutPage />} />
+            <Route path="/about" element={<About />} />
             <Route path="/news" element={<News news={news} />} />
             <Route path="/news/:id" element={<NewsDetail news={news} />} />
             <Route path="/announcements" element={<Announcements announcements={announcements} />} />
@@ -136,22 +137,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-const AboutPage = () => (
-  <motion.div 
-    initial={{ opacity: 0 }} 
-    animate={{ opacity: 1 }} 
-    exit={{ opacity: 0 }}
-    className="pt-32 pb-20 bg-white"
-  >
-    <div className="max-container px-4">
-      <section className="mb-24">
-        <div className="max-container">
-          <h1 className="text-6xl md:text-8xl font-bold font-serif italic mb-8 text-gray-900 leading-tight">Our Eternal <span className="text-cyan-500">Genesis</span></h1>
-        </div>
-      </section>
-    </div>
-  </motion.div>
-);
 
 export default App;

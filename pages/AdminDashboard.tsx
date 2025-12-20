@@ -7,10 +7,10 @@ import {
   Camera, Upload, Database, Bell, Loader2, HardDrive, 
   MessageSquare, Briefcase, Home as HomeIcon, Star, Shield, UserPlus,
   AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Sparkles, Activity,
-  Calendar, Eye, Phone, Heart
+  Calendar, Eye, Phone, Heart, History, BookOpen
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig } from '../types';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig } from '../types';
 import { API } from '../services/api';
 
 // Modular components
@@ -20,6 +20,7 @@ import NewsForm from '../components/admin/NewsForm';
 import AnnouncementForm from '../components/admin/AnnouncementForm';
 import OverviewTab from '../components/admin/OverviewTab';
 import HomeEditorTab from '../components/admin/HomeEditorTab';
+import AboutEditorTab from '../components/admin/AboutEditorTab';
 import DirectoryTab from '../components/admin/DirectoryTab';
 import InboxTab from '../components/admin/InboxTab';
 import SystemTab from '../components/admin/SystemTab';
@@ -43,7 +44,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   user: currentUser, members, news, leaders, announcements, depts,
   onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'home' | 'members' | 'content' | 'bulletin' | 'depts' | 'contacts' | 'leaders' | 'donations' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'home' | 'about' | 'members' | 'content' | 'bulletin' | 'depts' | 'contacts' | 'leaders' | 'donations' | 'system'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
@@ -51,6 +52,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [contactMsgs, setContactMsgs] = useState<ContactMessage[]>([]);
   const [homeSetup, setHomeSetup] = useState<HomeConfig | null>(null);
+  const [aboutSetup, setAboutSetup] = useState<AboutConfig | null>(null);
 
   // Modal States
   const [showModal, setShowModal] = useState<'news' | 'leader' | 'ann' | 'dept' | 'member' | null>(null);
@@ -61,12 +63,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [urlInput, setUrlInput] = useState('');
 
   const fetchData = async () => {
-    const [c, h] = await Promise.all([
+    const [c, h, a] = await Promise.all([
       API.contacts.getAll(), 
-      API.home.getConfig()
+      API.home.getConfig(),
+      API.about.getConfig()
     ]);
     setContactMsgs(c);
     setHomeSetup(h);
+    setAboutSetup(a);
     setDbHealth(API.system.getHealth());
   };
 
@@ -133,7 +137,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     await API.home.updateConfig(updates);
     setHomeSetup(await API.home.getConfig());
     setIsSyncing(false);
-    setShowSuccessModal({ type: 'home', message: 'Identity persistent.' });
+    setShowSuccessModal({ type: 'home', message: 'Landing persistent.' });
+  };
+
+  const saveAboutConfig = async (updates: Partial<AboutConfig>) => {
+    setIsSyncing(true);
+    await API.about.updateConfig(updates);
+    setAboutSetup(await API.about.getConfig());
+    setIsSyncing(false);
+    setShowSuccessModal({ type: 'about', message: 'Legacy persisted.' });
   };
 
   const saveItem = async (e: React.FormEvent) => {
@@ -236,6 +248,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {[
                   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                   { id: 'home', label: 'Home Editor', icon: HomeIcon },
+                  { id: 'about', label: 'About Editor', icon: History },
                   { id: 'members', label: 'Directory', icon: Users },
                   { id: 'content', label: 'News Feed', icon: Newspaper },
                   { id: 'bulletin', label: 'Bulletin', icon: Bell },
@@ -261,6 +274,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {activeTab === 'home' && (
                 <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={saveHomeConfig} />
+              )}
+
+              {activeTab === 'about' && (
+                <AboutEditorTab config={aboutSetup} onSubmit={saveAboutConfig} isSyncing={isSyncing} />
               )}
 
               {activeTab === 'members' && (

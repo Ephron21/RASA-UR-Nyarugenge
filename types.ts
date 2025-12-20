@@ -107,3 +107,32 @@ export interface HomeConfig {
   stat2Value: string;
   stat2Label: string;
 }
+
+export interface AboutValue {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  year: string;
+  title: string;
+  description: string;
+}
+
+export interface AboutConfig {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  historyTitle: string;
+  historyContent: string;
+  historyImage: string;
+  visionTitle: string;
+  visionContent: string;
+  missionTitle: string;
+  missionContent: string;
+  values: AboutValue[];
+  timeline: TimelineEvent[];
+}

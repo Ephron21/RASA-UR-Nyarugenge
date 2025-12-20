@@ -1,5 +1,5 @@
 
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, Donation, DonationProject } from '../types';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, Donation, DonationProject, AboutConfig } from '../types';
 
 const DB_NAME = 'rasa_db';
 
@@ -13,6 +13,7 @@ interface DatabaseSchema {
   donations: Donation[];
   donationProjects: DonationProject[];
   homeConfig: HomeConfig;
+  aboutConfig: AboutConfig;
   logs: { id: string; action: string; timestamp: string }[];
   otps: { email: string; otp: string; expires: number }[];
 }
@@ -72,6 +73,29 @@ const INITIAL_DATA: DatabaseSchema = {
     stat2Value: '10+',
     stat2Label: 'MINISTRIES'
   },
+  aboutConfig: {
+    heroTitle: 'Our Eternal Genesis',
+    heroSubtitle: 'A legacy of faith, resilience, and spiritual awakening at the University of Rwanda.',
+    heroImage: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070',
+    historyTitle: 'A Journey Through Fire & Grace',
+    historyContent: 'The Rwanda Anglican Students Association (RASA) was born in 1997 at the former UNR Butare. It was a time of immense spiritual hunger following the tragic events of 1994. A group of courageous students, led by divine conviction, came together to establish a sanctuary of prayer and mutual support.',
+    historyImage: 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000',
+    visionTitle: 'Our Vision',
+    visionContent: 'To become a vibrant spiritual hub that transforms university students into Christ-centered leaders who influence society with the values of the Kingdom of God.',
+    missionTitle: 'Our Mission',
+    missionContent: 'To proclaim the Gospel of Jesus Christ among academicians, nurture spiritual growth, and foster a community of love, service, and academic excellence.',
+    values: [
+      { id: 'v1', title: 'Salvation (Agakiza)', description: 'Total reliance on the grace of God through Jesus Christ.', icon: 'Cross' },
+      { id: 'v2', title: 'Love (Urukundo)', description: 'Fostering a brotherhood that transcends all differences.', icon: 'Heart' },
+      { id: 'v3', title: 'Work (Umurimo)', description: 'Striving for excellence in our academic and spiritual duties.', icon: 'Briefcase' }
+    ],
+    timeline: [
+      { id: 't1', year: '1997', title: 'The Genesis', description: 'RASA founded at UNR Butare campus.' },
+      { id: 't2', year: '2005', title: 'Kigali Expansion', description: 'Establishment of the Nyarugenge branch at UR CST.' },
+      { id: 't3', year: '2015', title: 'The Great Revival', description: 'Membership surpassed 500 active students.' },
+      { id: 't4', year: '2024', title: 'Digital Transformation', description: 'Launching the RASA Portal for integrated ministry management.' }
+    ]
+  },
   logs: [],
   otps: []
 };
@@ -82,11 +106,12 @@ class SimulatedDB {
   constructor() {
     const saved = localStorage.getItem(DB_NAME);
     this.data = saved ? JSON.parse(saved) : INITIAL_DATA;
-    // Migration for donations if they don't exist in existing data
+    // Migration logic
     if (saved) {
       let migrated = false;
       if (!this.data.donations) { this.data.donations = INITIAL_DATA.donations; migrated = true; }
       if (!this.data.donationProjects) { this.data.donationProjects = INITIAL_DATA.donationProjects; migrated = true; }
+      if (!this.data.aboutConfig) { this.data.aboutConfig = INITIAL_DATA.aboutConfig; migrated = true; }
       if (migrated) this.save();
     } else {
       this.save();
@@ -118,6 +143,9 @@ class SimulatedDB {
     if (collection === 'homeConfig') {
       this.data.homeConfig = { ...this.data.homeConfig, ...updates };
       this.log(`Updated Site Configuration`);
+    } else if (collection === 'aboutConfig') {
+      this.data.aboutConfig = { ...this.data.aboutConfig, ...updates };
+      this.log(`Updated About Page Configuration`);
     } else {
       const arr = this.data[collection] as any[];
       const idx = arr.findIndex(i => i.id === id);

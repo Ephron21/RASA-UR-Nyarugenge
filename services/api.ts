@@ -1,6 +1,6 @@
 
 import { db } from './db';
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, Donation, DonationProject } from '../types';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, Donation, DonationProject, AboutConfig } from '../types';
 
 const LATENCY = 400;
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -72,6 +72,10 @@ export const API = {
   home: {
     getConfig: async () => { await delay(LATENCY); return db.getCollection('homeConfig'); },
     updateConfig: async (updates: Partial<HomeConfig>) => { await delay(LATENCY); return db.update('homeConfig', null, updates); }
+  },
+  about: {
+    getConfig: async () => { await delay(LATENCY); return db.getCollection('aboutConfig'); },
+    updateConfig: async (updates: Partial<AboutConfig>) => { await delay(LATENCY); return db.update('aboutConfig', null, updates); }
   },
   system: {
     getHealth: () => db.getHealth(),
