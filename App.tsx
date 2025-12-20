@@ -111,6 +111,7 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute user={user} requiredRole="admin">
                   <AdminDashboard 
+                    user={user!}
                     members={members} 
                     news={news} 
                     leaders={leaders}

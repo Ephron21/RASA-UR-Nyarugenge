@@ -26,6 +26,7 @@ import SystemTab from '../components/admin/SystemTab';
 import DonationTab from '../components/admin/DonationTab';
 
 interface AdminDashboardProps {
+  user: User; // Current logged in admin
   members: User[];
   news: NewsItem[];
   leaders: Leader[];
@@ -39,7 +40,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  members, news, leaders, announcements, depts,
+  user: currentUser, members, news, leaders, announcements, depts,
   onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'home' | 'members' | 'content' | 'bulletin' | 'depts' | 'contacts' | 'leaders' | 'donations' | 'system'>('overview');
@@ -401,7 +402,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </motion.div>
               )}
 
-              {activeTab === 'donations' && <DonationTab />}
+              {activeTab === 'donations' && <DonationTab user={currentUser} />}
 
               {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={async (id) => { await API.contacts.markRead(id); fetchData(); }} onMarkAllRead={async () => { await API.contacts.markAllRead(); fetchData(); }} onDelete={(id) => performDelete('contacts', id)} />}
 

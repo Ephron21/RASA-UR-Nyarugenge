@@ -1,11 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Handshake, Plus, Trash2, DollarSign, Calendar, Filter, Search, BarChart3, TrendingUp, Layers, CheckCircle2, AlertCircle, Edit, X, Camera, Upload, Loader2, Save } from 'lucide-react';
+import { Heart, Handshake, Plus, Trash2, DollarSign, Calendar, Filter, Search, BarChart3, TrendingUp, Layers, CheckCircle2, AlertCircle, Edit, X, Camera, Upload, Loader2, Save, ShieldAlert } from 'lucide-react';
 import { API } from '../../services/api';
-import { Donation, DonationProject } from '../../types';
+import { Donation, DonationProject, User } from '../../types';
 
-const DonationTab: React.FC = () => {
+interface DonationTabProps {
+  user: User;
+}
+
+const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
   const [donations, setDonations] = useState<Donation[]>([]);
   const [projects, setProjects] = useState<DonationProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +21,12 @@ const DonationTab: React.FC = () => {
   const [editingProject, setEditingProject] = useState<DonationProject | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Permission Logic
+  const isSeniorAdmin = user.email === 'esront21@gmail.com';
+  // "Permission is allowed only for accountant" - Assuming all admins can verify, but only Senior can Manage projects.
+  const canVerify = user.role === 'admin'; 
+  const canManageProjects = isSeniorAdmin;
 
   const fetchData = async () => {
     setLoading(true);
@@ -36,28 +46,28 @@ const DonationTab: React.FC = () => {
   const totalRaised = donations.filter(d => d.status === 'Completed').reduce((acc, curr) => acc + curr.amount, 0);
 
   const handleConfirmDonation = async (donation: Donation) => {
+    if (!canVerify) {
+      alert("Only the Accountant can verify offerings.");
+      return;
+    }
     if (!window.confirm(`Confirm receipt of ${donation.amount.toLocaleString()} RWF from ${donation.donorName}?`)) return;
     
     setIsSyncing(true);
-    // Find associated project if any
     const project = projects.find(p => p.title === donation.project);
-    
-    // Update donation status to completed
     await API.donations.updateStatus(donation.id, 'Completed');
-    
-    // If it was for a project, update project raised amount
     if (project) {
       await API.donations.projects.update(project.id, {
         raised: project.raised + donation.amount
       });
     }
-    
     await fetchData();
     setIsSyncing(false);
   };
 
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageProjects) return;
+
     setIsSyncing(true);
     const formData = new FormData(e.target as HTMLFormElement);
     
@@ -87,6 +97,7 @@ const DonationTab: React.FC = () => {
   };
 
   const handleDeleteProject = async (id: string) => {
+    if (!canManageProjects) return;
     if (!window.confirm('Are you sure? This will remove the project from the public donations page.')) return;
     setIsSyncing(true);
     await API.donations.projects.delete(id);
@@ -173,9 +184,10 @@ const DonationTab: React.FC = () => {
                     <td className="px-8 py-4 text-right">
                        {d.status === 'Pending' ? (
                          <button 
-                            disabled={isSyncing}
+                            disabled={isSyncing || !canVerify}
                             onClick={() => handleConfirmDonation(d)}
-                            className="px-4 py-2 bg-green-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-green-100 hover:bg-green-600 active:scale-95 transition-all"
+                            className={`px-4 py-2 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all ${canVerify ? 'bg-green-500 shadow-green-100 hover:bg-green-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}
+                            title={!canVerify ? "Accountant permission required" : "Mark as Received"}
                          >
                            {isSyncing ? '...' : 'Verify Receipt'}
                          </button>
@@ -197,13 +209,23 @@ const DonationTab: React.FC = () => {
         <div className="xl:col-span-4 space-y-6">
           <div className="flex items-center justify-between">
              <h3 className="text-2xl font-black font-serif italic text-gray-900">Project Hub</h3>
-             <button 
-                onClick={() => { setEditingProject(null); setFilePreview(null); setShowProjectModal(true); }}
-                className="p-3 bg-cyan-500 text-white rounded-xl shadow-lg hover:bg-cyan-600 transition-all active:scale-95"
-             >
-               <Plus size={18}/>
-             </button>
+             {canManageProjects && (
+               <button 
+                  onClick={() => { setEditingProject(null); setFilePreview(null); setShowProjectModal(true); }}
+                  className="p-3 bg-cyan-500 text-white rounded-xl shadow-lg hover:bg-cyan-600 transition-all active:scale-95"
+               >
+                 <Plus size={18}/>
+               </button>
+             )}
           </div>
+          
+          {!canManageProjects && (
+            <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 items-center">
+              <ShieldAlert className="text-amber-500 shrink-0" size={20} />
+              <p className="text-[10px] font-bold text-amber-700 leading-tight">Modification Restricted: Project management is reserved for the Senior Administration.</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             {projects.map(p => (
               <div key={p.id} className="p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm space-y-4 group">
@@ -217,10 +239,12 @@ const DonationTab: React.FC = () => {
                       <p className={`text-[8px] font-black uppercase ${p.isActive ? 'text-green-500' : 'text-red-400'}`}>{p.isActive ? 'Visible' : 'Hidden'}</p>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={() => { setEditingProject(p); setShowProjectModal(true); }} className="p-2 text-gray-400 hover:text-cyan-500 hover:bg-cyan-50 rounded-lg transition-colors"><Edit size={14}/></button>
-                    <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button>
-                  </div>
+                  {canManageProjects && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => { setEditingProject(p); setShowProjectModal(true); }} className="p-2 text-gray-400 hover:text-cyan-500 hover:bg-cyan-50 rounded-lg transition-colors"><Edit size={14}/></button>
+                      <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                    <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
