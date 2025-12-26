@@ -2,9 +2,10 @@
 import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, Donation, DonationProject, AboutConfig } from '../types';
 
 const DB_NAME = 'rasa_db';
+const BACKUP_KEY = 'rasa_db_backups';
 
 interface DatabaseSchema {
-  members: User[];
+  members: (User & { password?: string })[];
   news: NewsItem[];
   leaders: Leader[];
   announcements: Announcement[];
@@ -18,20 +19,74 @@ interface DatabaseSchema {
   otps: { email: string; otp: string; expires: number }[];
 }
 
+export interface BackupEntry {
+  id: string;
+  timestamp: string;
+  size: string;
+  description: string;
+  data: DatabaseSchema;
+}
+
 const INITIAL_DATA: DatabaseSchema = {
   members: [
-    { id: 'admin-1', fullName: 'RASA Senior Admin', email: 'esront21@gmail.com', phone: '+250 788 999 999', role: 'admin', program: 'Administration', level: 'N/A', diocese: 'Kigali', department: 'Executive', createdAt: '2021-01-01' },
-    { id: 'u1', fullName: 'Kevin Bizimana', email: 'kevin@test.com', phone: '+250 788 000 001', role: 'member', program: 'Architecture', level: 'Level 2', diocese: 'Kigali', department: 'Evangelisation', createdAt: '2023-01-10' },
+    { 
+      id: 'it-super-master', 
+      fullName: 'Esron Tuyishime (IT)', 
+      email: 'ephrontuyishime21@gmail.com', 
+      password: 'Diano21%',
+      phone: '+250 787 846 433', 
+      role: 'it', 
+      program: 'Software Engineering & IT', 
+      level: 'Expert', 
+      diocese: 'Kigali', 
+      department: 'IT & Infrastructure', 
+      createdAt: '1997-01-01' 
+    },
+    { 
+      id: 'u1', 
+      fullName: 'Kevin Accountant', 
+      email: 'finance@test.com', 
+      password: 'password123',
+      phone: '+250 788 000 001', 
+      role: 'accountant', 
+      program: 'Economics', 
+      level: 'Level 4', 
+      diocese: 'Kigali', 
+      department: 'Social Affairs', 
+      createdAt: '2023-01-10' 
+    },
+    { 
+      id: 'u2', 
+      fullName: 'Marie Secretary', 
+      email: 'secretary@test.com', 
+      password: 'password123',
+      phone: '+250 788 000 002', 
+      role: 'secretary', 
+      program: 'Management', 
+      level: 'Level 3', 
+      diocese: 'Butare', 
+      department: 'Media', 
+      createdAt: '2023-05-15' 
+    },
+    { 
+      id: 'u3', 
+      fullName: 'Jean Member', 
+      email: 'member@test.com', 
+      password: 'password123',
+      phone: '+250 788 000 003', 
+      role: 'member', 
+      program: 'Architecture', 
+      level: 'Level 2', 
+      diocese: 'Gahini', 
+      department: 'Evangelisation', 
+      createdAt: '2024-01-01' 
+    },
   ],
   news: [
-    { id: '1', title: 'Grand Fellowship Service 2024', content: 'Join us for a spirit-filled mass fellowship this Sunday at the Student Center. We will have guest ministers from across Kigali.', category: 'event', mediaUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop', mediaType: 'image', author: 'Admin', date: '2024-03-20' },
+    { id: '1', title: 'Grand Fellowship Service 2024', content: 'Join us for a spirit-filled mass fellowship this Sunday at the Student Center.', category: 'event', mediaUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070', mediaType: 'image', author: 'Admin', date: '2024-03-20' },
   ],
   leaders: [
-    { id: 'l1', name: 'Yves Mbaraga Igiraneza', position: 'Representative', phone: '+250 787 191 437', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&h=1000&fit=crop', type: 'Executive' },
-    { id: 'l2', name: 'Xavier Ahishakiye', position: 'First Vice-President', phone: '+250 784 933 503', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop', type: 'Executive' },
-    { id: 'l3', name: 'Delice Umuhoza Twahirwa', position: 'Second Vice-President', phone: '+250 780 473 147', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop', type: 'Executive' },
-    { id: 'l4', name: 'Latifa Uwaberat', position: 'Secretary', phone: '+250 781 663 746', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=500&fit=crop', type: 'Executive' },
-    { id: 'l5', name: 'Esron Tuyishimire', position: 'Board Chair', phone: '+250 787 846 433', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop', type: 'Arbitration' }
+    { id: 'l1', name: 'Yves Mbaraga Igiraneza', position: 'Representative', phone: '+250 787 191 437', academicYear: '2024-2025', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800', type: 'Executive' },
   ],
   announcements: [
     { id: 'a1', title: 'Mid-week Prayer Resumption', content: 'Weekly Wednesday prayers resume at the main chapel starting 6 PM.', date: '2024-03-24', status: 'Notice', color: 'bg-cyan-500', isActive: true }
@@ -48,23 +103,20 @@ const INITIAL_DATA: DatabaseSchema = {
       activities: ['Weekly Revival Nights', 'Prayer Retreats', 'Fasting Fellowships'] 
     }
   ],
-  contacts: [
-    { id: 'c1', fullName: 'Test User', email: 'test@student.ac.rw', phone: '+250 787 846 433', subject: 'Inquiry', message: 'Hello RASA, I would like to join the worship team.', date: new Date().toISOString(), isRead: false }
-  ],
+  contacts: [],
   donations: [
     { id: 'd1', donorName: 'Post RASA Alumni', email: 'alumni@test.com', phone: '+250 788 000 001', amount: 50000, currency: 'RWF', category: 'Project-based', project: 'New Sound System', date: '2024-03-10', status: 'Completed', transactionId: 'TX12345678' }
   ],
   donationProjects: [
-    { id: 'p1', title: 'New Sound System', description: 'Upgrading our chapel speakers and microphones for better worship quality.', goal: 2000000, raised: 750000, image: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?q=80&w=2070', isActive: true },
-    { id: 'p2', title: 'Mission to Eastern Province', description: 'Supporting our Evangelization department for a weekend-long campus outreach.', goal: 500000, raised: 120000, image: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?q=80&w=2070', isActive: true }
+    { id: 'p1', title: 'New Sound System', description: 'Upgrading our chapel speakers and microphones.', goal: 2000000, raised: 750000, image: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0', isActive: true },
   ],
   homeConfig: {
     heroTitle: 'Showing Christ to Academicians',
     heroSubtitle: '"Agakiza, Urukundo, Umurimo" — A journey of faith, service, and excellence at UR Nyarugenge.',
-    heroImageUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070&auto=format&fit=crop',
+    heroImageUrl: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070',
     motto: 'Est. 1997 • RASA UR-Nyarugenge',
     aboutTitle: 'Our Sacred Vision',
-    aboutText: 'RASA UR-Nyarugenge is more than an association; it is a family of students united by the Great Commission. Founded in the fires of revival in 1997, we exist to empower students to live out their faith in the university ecosystem.',
+    aboutText: 'RASA UR-Nyarugenge is more than an association; it is a family of students united by the Great Commission.',
     aboutImageUrl: 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000',
     aboutScripture: 'Until we all reach unity in the faith...',
     aboutScriptureRef: 'EPHESIANS 4:13',
@@ -75,25 +127,20 @@ const INITIAL_DATA: DatabaseSchema = {
   },
   aboutConfig: {
     heroTitle: 'Our Eternal Genesis',
-    heroSubtitle: 'A legacy of faith, resilience, and spiritual awakening at the University of Rwanda.',
+    heroSubtitle: 'A legacy of faith, resilience, and spiritual awakening.',
     heroImage: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?q=80&w=2070',
     historyTitle: 'A Journey Through Fire & Grace',
-    historyContent: 'The Rwanda Anglican Students Association (RASA) was born in 1997 at the former UNR Butare. It was a time of immense spiritual hunger following the tragic events of 1994. A group of courageous students, led by divine conviction, came together to establish a sanctuary of prayer and mutual support.',
+    historyContent: 'The Rwanda Anglican Students Association (RASA) was born in 1997 at the former UNR Butare.',
     historyImage: 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000',
     visionTitle: 'Our Vision',
-    visionContent: 'To become a vibrant spiritual hub that transforms university students into Christ-centered leaders who influence society with the values of the Kingdom of God.',
+    visionContent: 'To become a vibrant spiritual hub...',
     missionTitle: 'Our Mission',
-    missionContent: 'To proclaim the Gospel of Jesus Christ among academicians, nurture spiritual growth, and foster a community of love, service, and academic excellence.',
+    missionContent: 'To proclaim the Gospel of Jesus Christ among academicians...',
     values: [
-      { id: 'v1', title: 'Salvation (Agakiza)', description: 'Total reliance on the grace of God through Jesus Christ.', icon: 'Cross' },
-      { id: 'v2', title: 'Love (Urukundo)', description: 'Fostering a brotherhood that transcends all differences.', icon: 'Heart' },
-      { id: 'v3', title: 'Work (Umurimo)', description: 'Striving for excellence in our academic and spiritual duties.', icon: 'Briefcase' }
+      { id: 'v1', title: 'Salvation', description: 'Total reliance on grace.', icon: 'Cross' },
     ],
     timeline: [
       { id: 't1', year: '1997', title: 'The Genesis', description: 'RASA founded at UNR Butare campus.' },
-      { id: 't2', year: '2005', title: 'Kigali Expansion', description: 'Establishment of the Nyarugenge branch at UR CST.' },
-      { id: 't3', year: '2015', title: 'The Great Revival', description: 'Membership surpassed 500 active students.' },
-      { id: 't4', year: '2024', title: 'Digital Transformation', description: 'Launching the RASA Portal for integrated ministry management.' }
     ]
   },
   logs: [],
@@ -106,16 +153,7 @@ class SimulatedDB {
   constructor() {
     const saved = localStorage.getItem(DB_NAME);
     this.data = saved ? JSON.parse(saved) : INITIAL_DATA;
-    // Migration logic
-    if (saved) {
-      let migrated = false;
-      if (!this.data.donations) { this.data.donations = INITIAL_DATA.donations; migrated = true; }
-      if (!this.data.donationProjects) { this.data.donationProjects = INITIAL_DATA.donationProjects; migrated = true; }
-      if (!this.data.aboutConfig) { this.data.aboutConfig = INITIAL_DATA.aboutConfig; migrated = true; }
-      if (migrated) this.save();
-    } else {
-      this.save();
-    }
+    if (!saved) this.save();
   }
 
   private save() {
@@ -142,10 +180,8 @@ class SimulatedDB {
   async update<T extends keyof DatabaseSchema>(collection: T, id: string | null, updates: any) {
     if (collection === 'homeConfig') {
       this.data.homeConfig = { ...this.data.homeConfig, ...updates };
-      this.log(`Updated Site Configuration`);
     } else if (collection === 'aboutConfig') {
       this.data.aboutConfig = { ...this.data.aboutConfig, ...updates };
-      this.log(`Updated About Page Configuration`);
     } else {
       const arr = this.data[collection] as any[];
       const idx = arr.findIndex(i => i.id === id);
@@ -159,6 +195,9 @@ class SimulatedDB {
   }
 
   async delete<T extends keyof DatabaseSchema>(collection: T, id: string) {
+    // Automated Recovery Mechanism: Create a backup before any deletion
+    this.createBackup(`Auto-backup before deletion in ${collection}`);
+    
     const arr = this.data[collection] as any[];
     const idx = arr.findIndex(i => i.id === id);
     if (idx !== -1) {
@@ -170,30 +209,80 @@ class SimulatedDB {
     return false;
   }
 
+  async verifyMember(email: string, pass: string): Promise<User | null> {
+    const user = this.data.members.find(m => m.email.toLowerCase() === email.toLowerCase() && m.password === pass);
+    if (user) {
+      const { password, ...userWithoutPass } = user;
+      return userWithoutPass as User;
+    }
+    return null;
+  }
+
   async markAllRead() {
     this.data.contacts.forEach(c => c.isRead = true);
-    this.log(`Marked all messages as read`);
+    this.log('Marked all contacts as read');
     this.save();
-    return true;
+    return { success: true };
+  }
+
+  async createBackup(description: string = 'Manual Snapshot') {
+    const backupsRaw = localStorage.getItem(BACKUP_KEY);
+    const backups: BackupEntry[] = backupsRaw ? JSON.parse(backupsRaw) : [];
+    
+    const rawData = JSON.stringify(this.data);
+    const newBackup: BackupEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toISOString(),
+      size: `${(new Blob([rawData]).size / 1024).toFixed(2)} KB`,
+      description,
+      data: JSON.parse(rawData)
+    };
+
+    backups.unshift(newBackup);
+    // Keep only last 10 backups
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backups.slice(0, 10)));
+    this.log(`System Backup Created: ${description}`);
+    return newBackup;
+  }
+
+  async getBackups(): Promise<BackupEntry[]> {
+    const backupsRaw = localStorage.getItem(BACKUP_KEY);
+    return backupsRaw ? JSON.parse(backupsRaw) : [];
+  }
+
+  async restoreFromBackup(backupId: string) {
+    const backupsRaw = localStorage.getItem(BACKUP_KEY);
+    if (!backupsRaw) return false;
+    
+    const backups: BackupEntry[] = JSON.parse(backupsRaw);
+    const backup = backups.find(b => b.id === backupId);
+    
+    if (backup) {
+      this.data = backup.data;
+      this.save();
+      this.log(`System Restored from Backup: ${backup.id}`);
+      return true;
+    }
+    return false;
   }
 
   async generateOTP(email: string) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    this.data.otps.push({ email, otp, expires: Date.now() + 600000 });
-    this.log(`Generated OTP for ${email}`);
+    const expires = Date.now() + 10 * 60 * 1000;
+    this.data.otps = this.data.otps.filter(o => o.email !== email);
+    this.data.otps.push({ email, otp, expires });
     this.save();
-    console.log(`[SIMULATED EMAIL] OTP for ${email}: ${otp}`);
-    return true;
+    return { success: true };
   }
 
   async verifyOTP(email: string, otp: string) {
-    const idx = this.data.otps.findIndex(o => o.email === email && o.otp === otp && o.expires > Date.now());
-    if (idx !== -1) {
-      this.data.otps.splice(idx, 1);
+    const record = this.data.otps.find(o => o.email === email && o.otp === otp && o.expires > Date.now());
+    if (record) {
+      this.data.otps = this.data.otps.filter(o => o.email !== email);
       this.save();
-      return true;
+      return { success: true };
     }
-    return false;
+    return { success: false, error: 'Invalid or expired OTP' };
   }
 
   getHealth() {
@@ -202,12 +291,17 @@ class SimulatedDB {
       status: 'Online',
       size: `${(new Blob([raw]).size / 1024).toFixed(2)} KB`,
       collections: Object.keys(this.data).length,
-      lastSync: new Date().toLocaleTimeString()
+      lastSync: new Date().toLocaleTimeString(),
+      uptime: '100%',
+      version: '2.4.0-Stable'
     };
   }
 
   reset() {
-    localStorage.removeItem(DB_NAME);
+    // We no longer wipe completely, but we can restore to INITIAL_DATA
+    this.createBackup('Pre-reset archival snapshot');
+    this.data = JSON.parse(JSON.stringify(INITIAL_DATA));
+    this.save();
     window.location.reload();
   }
 }

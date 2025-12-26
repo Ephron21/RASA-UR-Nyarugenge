@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Shield, Heart, Briefcase, Cross, Quote, Sparkles, Book } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -35,9 +35,15 @@ const App: React.FC = () => {
     const initApp = async () => {
       try {
         const savedUser = localStorage.getItem('rasa_user');
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch (e) {
+            localStorage.removeItem('rasa_user');
+          }
+        }
 
-        const [newsData, leadersData, membersData, announcementsData, deptsData] = await Promise.all([
+        const results = await Promise.allSettled([
           API.news.getAll(),
           API.leaders.getAll(),
           API.members.getAll(),
@@ -45,13 +51,22 @@ const App: React.FC = () => {
           API.departments.getAll()
         ]);
 
-        setNews(newsData);
-        setLeaders(leadersData);
-        setMembers(membersData);
-        setAnnouncements(announcementsData);
-        setDepartments(deptsData.length > 0 ? deptsData : INITIAL_DEPTS);
+        const [newsRes, leadersRes, membersRes, announcementsRes, deptsRes] = results;
+
+        if (newsRes.status === 'fulfilled') setNews(newsRes.value || []);
+        if (leadersRes.status === 'fulfilled') setLeaders(leadersRes.value || []);
+        if (membersRes.status === 'fulfilled') setMembers(membersRes.value || []);
+        if (announcementsRes.status === 'fulfilled') setAnnouncements(announcementsRes.value || []);
+        if (deptsRes.status === 'fulfilled') {
+          const depts = deptsRes.value || [];
+          setDepartments(depts.length > 0 ? depts : INITIAL_DEPTS);
+        } else {
+          setDepartments(INITIAL_DEPTS);
+        }
+        
       } catch (err) {
-        console.error('Failed to boot system:', err);
+        console.error('Boot system experienced issues:', err);
+        setDepartments(INITIAL_DEPTS);
       } finally {
         setIsLoading(false);
       }
@@ -75,7 +90,7 @@ const App: React.FC = () => {
         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
           <Loader2 className="text-cyan-500" size={48} />
         </motion.div>
-        <p className="font-black text-xs uppercase tracking-widest text-gray-400">Booting RASA Core...</p>
+        <p className="font-black text-[10px] uppercase tracking-[0.4em] text-gray-400">Authenticating RASA Core...</p>
       </div>
     );
   }
@@ -88,7 +103,13 @@ const App: React.FC = () => {
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Home news={news} leaders={leaders} />} />
-            <Route path="/portal" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} /> : <Portal onLogin={handleLogin} />} />
+            <Route path="/portal" element={
+              user ? (
+                ['it', 'admin', 'executive', 'accountant', 'secretary'].includes(user.role) 
+                  ? <Navigate to="/admin" replace /> 
+                  : <Navigate to="/dashboard" replace />
+              ) : <Portal onLogin={handleLogin} />
+            } />
             <Route path="/about" element={<About />} />
             <Route path="/news" element={<News news={news} />} />
             <Route path="/news/:id" element={<NewsDetail news={news} />} />
@@ -110,7 +131,7 @@ const App: React.FC = () => {
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute user={user} requiredRole="admin">
+                <ProtectedRoute user={user} allowedRoles={['it', 'admin', 'executive', 'accountant', 'secretary']}> 
                   <AdminDashboard 
                     user={user!}
                     members={members} 

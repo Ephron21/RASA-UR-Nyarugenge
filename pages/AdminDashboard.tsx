@@ -1,33 +1,36 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, Newspaper, UserCheck, Plus, Trash2, 
-  Search, LayoutDashboard, Edit, X, Save, 
-  Camera, Upload, Database, Bell, Loader2, HardDrive, 
-  MessageSquare, Briefcase, Home as HomeIcon, Star, Shield, UserPlus,
-  AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Sparkles, Activity,
-  Calendar, Eye, Phone, Heart, History, BookOpen
+  Users, Newspaper, UserCheck, Plus, 
+  LayoutDashboard, Home as HomeIcon, Heart, 
+  MessageSquare, Briefcase, Bell, HardDrive, 
+  History, Shield, Loader2, Database, Search
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig } from '../types';
 import { API } from '../services/api';
 
-// Modular components
-import LeaderForm from '../components/admin/LeaderForm';
-import DepartmentForm from '../components/admin/DepartmentForm';
-import NewsForm from '../components/admin/NewsForm';
-import AnnouncementForm from '../components/admin/AnnouncementForm';
+// Modular Tab Components
 import OverviewTab from '../components/admin/OverviewTab';
 import HomeEditorTab from '../components/admin/HomeEditorTab';
 import AboutEditorTab from '../components/admin/AboutEditorTab';
 import DirectoryTab from '../components/admin/DirectoryTab';
+import NewsFeedTab from '../components/admin/NewsFeedTab';
+import BulletinTab from '../components/admin/BulletinTab';
+import MinistriesTab from '../components/admin/MinistriesTab';
+import LeadershipTab from '../components/admin/LeadershipTab';
+import DonationTab from '../components/admin/DonationTab';
 import InboxTab from '../components/admin/InboxTab';
 import SystemTab from '../components/admin/SystemTab';
-import DonationTab from '../components/admin/DonationTab';
+
+// Modal Forms
+import NewsForm from '../components/admin/NewsForm';
+import AnnouncementForm from '../components/admin/AnnouncementForm';
+import DepartmentForm from '../components/admin/DepartmentForm';
+import LeaderForm from '../components/admin/LeaderForm';
 
 interface AdminDashboardProps {
-  user: User; // Current logged in admin
+  user: User;
   members: User[];
   news: NewsItem[];
   leaders: Leader[];
@@ -44,44 +47,76 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   user: currentUser, members, news, leaders, announcements, depts,
   onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'home' | 'about' | 'members' | 'content' | 'bulletin' | 'depts' | 'contacts' | 'leaders' | 'donations' | 'system'>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [logs, setLogs] = useState<any[]>([]);
-  const [dbHealth, setDbHealth] = useState(API.system.getHealth());
-
+  const [dbHealth, setDbHealth] = useState<any>({ status: 'Online', size: '0KB', lastSync: 'N/A' });
   const [contactMsgs, setContactMsgs] = useState<ContactMessage[]>([]);
   const [homeSetup, setHomeSetup] = useState<HomeConfig | null>(null);
   const [aboutSetup, setAboutSetup] = useState<AboutConfig | null>(null);
 
-  // Modal States
+  // Modal Control
   const [showModal, setShowModal] = useState<'news' | 'leader' | 'ann' | 'dept' | 'member' | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState<{type: string, message: string} | null>(null);
-
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
 
+  // Permissions Mapping
+  const isIT = currentUser.role === 'it';
+  const isAccountant = currentUser.role === 'accountant';
+  const isSecretary = currentUser.role === 'secretary';
+  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'it';
+  const isExecutive = currentUser.role === 'executive';
+
+  const rolePermissions = useMemo(() => ({
+    canViewTab: (tabId: string) => {
+      if (isIT) return true;
+      if (isAccountant) return ['overview', 'donations'].includes(tabId);
+      if (isSecretary) return ['overview', 'members', 'content', 'bulletin', 'contacts'].includes(tabId);
+      if (isExecutive) return tabId !== 'system';
+      return tabId === 'overview';
+    },
+    canManageMembers: isIT,
+    canUpdateContent: isIT || isSecretary || isAdmin || isExecutive,
+    canDelete: isIT,
+    canVerifyDonations: isIT || isAccountant
+  }), [currentUser.role]);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'home', label: 'Home Editor', icon: HomeIcon },
+    { id: 'about', label: 'About Editor', icon: History },
+    { id: 'members', label: 'Directory', icon: Users },
+    { id: 'content', label: 'News Feed', icon: Newspaper },
+    { id: 'bulletin', label: 'Bulletin', icon: Bell },
+    { id: 'depts', label: 'Ministries', icon: Briefcase },
+    { id: 'leaders', label: 'Leadership', icon: UserCheck },
+    { id: 'donations', label: 'Offerings', icon: Heart },
+    { id: 'contacts', label: 'Inbox', icon: MessageSquare },
+    { id: 'system', label: 'System', icon: HardDrive },
+  ].filter(t => rolePermissions.canViewTab(t.id));
+
   const fetchData = async () => {
-    const [c, h, a] = await Promise.all([
-      API.contacts.getAll(), 
-      API.home.getConfig(),
-      API.about.getConfig()
-    ]);
-    setContactMsgs(c);
-    setHomeSetup(h);
-    setAboutSetup(a);
-    setDbHealth(API.system.getHealth());
+    try {
+      const [c, h, a, health, l] = await Promise.all([
+        API.contacts.getAll(), 
+        API.home.getConfig(),
+        API.about.getConfig(),
+        API.system.getHealth(),
+        API.system.getLogs()
+      ]);
+      setContactMsgs(c);
+      setHomeSetup(h);
+      setAboutSetup(a);
+      setDbHealth(health);
+      setLogs(l);
+    } catch (e) {
+      console.error("Fetch error", e);
+    }
   };
 
-  useEffect(() => {
-    fetchData();
-    const fetchLogs = async () => { 
-      const currentLogs = await API.system.getLogs();
-      setLogs(currentLogs); 
-    };
-    fetchLogs();
-  }, [activeTab]);
+  useEffect(() => { fetchData(); }, [activeTab]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,140 +127,87 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const closeModals = () => {
-    setShowModal(null);
-    setEditingItem(null);
-    setFilePreview(null);
-    setUrlInput('');
-  };
-
-  const handleEditInitiation = (item: any, type: 'news' | 'leader' | 'ann' | 'dept' | 'member') => {
-    setEditingItem(item);
-    setShowModal(type);
-  };
-
-  const toggleAdminRole = async (member: User) => {
-    if (member.email === 'esront21@gmail.com') return;
-    const newRole = member.role === 'admin' ? 'member' : 'admin';
-    if (!window.confirm(`Are you sure you want to change ${member.fullName}'s role to ${newRole}?`)) return;
-    
+  const commitWipe = async (type: any, id: string) => {
+    if (!rolePermissions.canDelete) return alert("Security: Only IT has wipe authority.");
+    if (!window.confirm("Wipe this record permanently?")) return;
     setIsSyncing(true);
-    await API.members.updateRole(member.id, newRole);
-    onUpdateMembers(await API.members.getAll());
+    await (API as any)[type].delete(id);
+    await fetchData();
+    // Refresh parent state
+    if (type === 'members') onUpdateMembers(await API.members.getAll());
+    if (type === 'news') onUpdateNews(await API.news.getAll());
+    if (type === 'announcements') onUpdateAnnouncements(await API.announcements.getAll());
+    if (type === 'departments') onUpdateDepartments(await API.departments.getAll());
+    if (type === 'leaders') onUpdateLeaders(await API.leaders.getAll());
     setIsSyncing(false);
   };
 
-  const saveHomeConfig = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
     const formData = new FormData(e.target as HTMLFormElement);
-    const updates = {
-      heroTitle: formData.get('heroTitle') as string,
-      heroSubtitle: formData.get('heroSubtitle') as string,
-      heroImageUrl: filePreview || formData.get('heroImageUrl_manual') as string || homeSetup?.heroImageUrl || '',
-      motto: formData.get('motto') as string,
-      aboutTitle: formData.get('aboutTitle') as string,
-      aboutText: formData.get('aboutText') as string,
-      aboutImageUrl: (formData.get('aboutImageUrl_hidden') as string) || homeSetup?.aboutImageUrl || '',
-      aboutScripture: formData.get('aboutScripture') as string,
-      aboutScriptureRef: formData.get('aboutScriptureRef') as string,
-      stat1Value: formData.get('stat1Value') as string,
-      stat1Label: formData.get('stat1Label') as string,
-      stat2Value: formData.get('stat2Value') as string,
-      stat2Label: formData.get('stat2Label') as string,
-    };
-    await API.home.updateConfig(updates);
-    setHomeSetup(await API.home.getConfig());
-    setIsSyncing(false);
-    setShowSuccessModal({ type: 'home', message: 'Landing persistent.' });
-  };
-
-  const saveAboutConfig = async (updates: Partial<AboutConfig>) => {
-    setIsSyncing(true);
-    await API.about.updateConfig(updates);
-    setAboutSetup(await API.about.getConfig());
-    setIsSyncing(false);
-    setShowSuccessModal({ type: 'about', message: 'Legacy persisted.' });
-  };
-
-  const saveItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSyncing(true);
-    const formData = new FormData(e.target as HTMLFormElement);
-    const media = filePreview || urlInput || editingItem?.image || editingItem?.mediaUrl || editingItem?.profileImage || 'https://picsum.photos/400/300';
+    const media = filePreview || urlInput || editingItem?.image || editingItem?.mediaUrl || editingItem?.profileImage;
 
     try {
-      if (showModal === 'member') {
+      if (showModal === 'news') {
         const item = { 
-          fullName: formData.get('fullName') as string, email: formData.get('email') as string,
-          phone: formData.get('phone') as string, program: formData.get('program') as string,
-          level: formData.get('level') as string, diocese: formData.get('diocese') as string,
-          department: formData.get('department') as string, role: formData.get('role') as any,
-          profileImage: media, createdAt: editingItem?.createdAt || new Date().toISOString()
-        };
-        if (editingItem) await API.members.update(editingItem.id, item); 
-        else await API.members.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateMembers(await API.members.getAll());
-      } else if (showModal === 'news') {
-        const item = { 
-          title: formData.get('title') as string, content: formData.get('content') as string, 
-          category: formData.get('category') as any, mediaUrl: media, mediaType: formData.get('mediaType') as any, 
-          author: 'Admin', date: editingItem?.date || new Date().toISOString().split('T')[0] 
+          title: formData.get('title') as string, 
+          content: formData.get('content') as string, 
+          category: formData.get('category') as any, 
+          mediaUrl: media, 
+          mediaType: formData.get('mediaType') as any, 
+          author: currentUser.fullName, 
+          date: editingItem?.date || new Date().toISOString().split('T')[0] 
         };
         if (editingItem) await API.news.update(editingItem.id, item); 
         else await API.news.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
         onUpdateNews(await API.news.getAll());
       } else if (showModal === 'ann') {
         const item = { 
-          title: formData.get('title') as string, content: formData.get('content') as string, 
-          date: editingItem?.date || new Date().toISOString().split('T')[0], status: formData.get('status') as any, 
-          color: formData.get('color') as string, 
-          isActive: formData.get('isActive') === 'on' 
+          title: formData.get('title') as string, content: formData.get('content') as string,
+          status: formData.get('status') as any, color: formData.get('color') as string,
+          isActive: formData.get('isActive') === 'on', date: editingItem?.date || new Date().toISOString().split('T')[0]
         };
         if (editingItem) await API.announcements.update(editingItem.id, item);
         else await API.announcements.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
         onUpdateAnnouncements(await API.announcements.getAll());
-      } else if (showModal === 'leader') {
-        const item = { 
-          name: formData.get('name') as string, position: formData.get('position') as string, 
-          phone: formData.get('phone') as string,
-          academicYear: formData.get('academicYear') as string, image: media, 
-          type: formData.get('type') as any 
-        };
-        if (editingItem) await API.leaders.update(editingItem.id, item);
-        else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateLeaders(await API.leaders.getAll());
       } else if (showModal === 'dept') {
         const item = {
           name: formData.get('name') as string, description: formData.get('description') as string,
           icon: formData.get('icon') as string, details: formData.get('details') as string,
-          category: formData.get('category') as string,
-          image: media,
-          activities: (formData.get('activities') as string).split(',').map(a => a.trim())
+          image: media, activities: (formData.get('activities') as string).split(',').map(s => s.trim())
         };
         if (editingItem) await API.departments.update(editingItem.id, item);
         else await API.departments.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
         onUpdateDepartments(await API.departments.getAll());
+      } else if (showModal === 'leader') {
+        const item = {
+          name: formData.get('name') as string, position: formData.get('position') as string,
+          phone: formData.get('phone') as string, academicYear: formData.get('academicYear') as string,
+          type: formData.get('type') as any, image: media
+        };
+        if (editingItem) await API.leaders.update(editingItem.id, item);
+        else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        onUpdateLeaders(await API.leaders.getAll());
+      } else if (showModal === 'member') {
+        const item = {
+          fullName: formData.get('fullName') as string, email: formData.get('email') as string,
+          phone: formData.get('phone') as string, program: formData.get('program') as string,
+          level: formData.get('level') as string, diocese: formData.get('diocese') as string,
+          department: formData.get('department') as string, role: formData.get('role') as any,
+          profileImage: media, createdAt: editingItem?.createdAt || new Date().toISOString()
+        };
+        if (editingItem) await API.members.update(editingItem.id, item);
+        else await API.members.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        onUpdateMembers(await API.members.getAll());
       }
-      closeModals();
+      setShowModal(null);
+      setEditingItem(null);
+      setFilePreview(null);
+      setUrlInput('');
     } finally {
       setIsSyncing(false);
-      setDbHealth(API.system.getHealth());
     }
-  };
-
-  const performDelete = async (type: any, id: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this record?')) return;
-    setIsSyncing(true);
-    await (API as any)[type].delete(id);
-    if (type === 'members') onUpdateMembers(await API.members.getAll());
-    if (type === 'news') onUpdateNews(await API.news.getAll());
-    if (type === 'announcements') onUpdateAnnouncements(await API.announcements.getAll());
-    if (type === 'leaders') onUpdateLeaders(await API.leaders.getAll());
-    if (type === 'departments') onUpdateDepartments(await API.departments.getAll());
-    if (type === 'contacts') setContactMsgs(await API.contacts.getAll());
-    setIsSyncing(false);
-    setDbHealth(API.system.getHealth());
   };
 
   return (
@@ -234,31 +216,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {isSyncing && (
           <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 right-10 z-[300] bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white/10 backdrop-blur-xl">
             <Loader2 size={18} className="animate-spin text-cyan-400" />
-            <span className="text-xs font-black uppercase tracking-widest">Persisting Changes...</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Processing Logic...</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="max-container px-4">
         <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="w-full lg:w-64 space-y-4">
-            <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-gray-100 sticky top-28">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-300 ml-4 mb-4">Administration</p>
+          <aside className="w-full lg:w-64 shrink-0">
+            <div className="bg-white p-4 rounded-[2.5rem] shadow-sm border border-gray-100 sticky top-28">
+              <div className="flex items-center gap-3 ml-4 mb-6 pt-4">
+                <div className={`w-10 h-10 ${isIT ? 'bg-gray-900 shadow-gray-200' : 'bg-cyan-500 shadow-cyan-100'} rounded-xl flex items-center justify-center text-white shadow-lg`}>
+                   {isIT ? <Shield size={20} /> : <LayoutDashboard size={20} />}
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Layer Security</p>
+                  <p className={`text-xs font-black uppercase tracking-widest ${isIT ? 'text-gray-900' : 'text-cyan-600'}`}>{currentUser.role}</p>
+                </div>
+              </div>
               <div className="space-y-1">
-                {[
-                  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-                  { id: 'home', label: 'Home Editor', icon: HomeIcon },
-                  { id: 'about', label: 'About Editor', icon: History },
-                  { id: 'members', label: 'Directory', icon: Users },
-                  { id: 'content', label: 'News Feed', icon: Newspaper },
-                  { id: 'bulletin', label: 'Bulletin', icon: Bell },
-                  { id: 'depts', label: 'Ministries', icon: Briefcase },
-                  { id: 'leaders', label: 'Leadership', icon: UserCheck },
-                  { id: 'donations', label: 'Offering', icon: Heart },
-                  { id: 'contacts', label: 'Inbox', icon: MessageSquare },
-                  { id: 'system', label: 'System', icon: HardDrive },
-                ].map(tab => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all font-bold text-xs ${activeTab === tab.id ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-100' : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50'}`}>
+                {tabs.map(tab => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all font-bold text-xs ${activeTab === tab.id ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50'}`}>
                     <tab.icon size={16} /> <span>{tab.label}</span>
                   </button>
                 ))}
@@ -268,217 +246,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <main className="flex-grow min-w-0">
             <AnimatePresence mode="wait">
-              {activeTab === 'overview' && (
-                <OverviewTab members={members} news={news} leaders={leaders} announcements={announcements} contactMsgs={contactMsgs} depts={depts} logs={logs} />
-              )}
-
-              {activeTab === 'home' && (
-                <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={saveHomeConfig} />
-              )}
-
-              {activeTab === 'about' && (
-                <AboutEditorTab config={aboutSetup} onSubmit={saveAboutConfig} isSyncing={isSyncing} />
-              )}
-
-              {activeTab === 'members' && (
-                <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => { setEditingItem(null); setShowModal('member'); }} onEditMember={(m) => handleEditInitiation(m, 'member')} onDeleteMember={(id) => performDelete('members', id)} onToggleAdmin={toggleAdminRole} />
-              )}
-
-              {activeTab === 'content' && (
-                <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black font-serif italic text-gray-900 leading-tight">News Archive Manager</h3>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Public spirit news & event reporting</p>
-                    </div>
-                    <button onClick={() => { setEditingItem(null); setShowModal('news'); }} className="w-full md:w-auto px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all hover:scale-105 active:scale-95">
-                      <Plus size={16}/> Create New Article
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-6">
-                    {news.map(item => (
-                      <div key={item.id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6 group hover:shadow-xl transition-all">
-                        <div className="w-full md:w-48 h-32 rounded-[1.8rem] overflow-hidden shrink-0 border border-gray-50"><img src={item.mediaUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" /></div>
-                        <div className="flex-grow space-y-2">
-                          <div className="flex items-center gap-3"><span className="px-3 py-1 bg-cyan-50 text-cyan-600 text-[8px] font-black uppercase rounded-lg border border-cyan-100/50">{item.category}</span><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5"><Calendar size={12}/> {item.date}</span></div>
-                          <h4 className="text-xl font-black text-gray-900 tracking-tight line-clamp-1">{item.title}</h4>
-                          <p className="text-sm text-gray-500 line-clamp-2">{item.content}</p>
-                        </div>
-                        <div className="flex md:flex-col justify-end gap-2 shrink-0">
-                           <Link to={`/news/${item.id}`} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"><Eye size={18}/></Link>
-                           <button onClick={() => handleEditInitiation(item, 'news')} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm"><Edit size={18}/></button>
-                           <button onClick={() => performDelete('news', item.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'bulletin' && (
-                <motion.div key="bulletin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-2xl font-black font-serif italic text-gray-900">Campus Bulletin</h3>
-                    <button onClick={() => { setEditingItem(null); setShowModal('ann'); }} className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-                      <Plus size={16}/> New Announcement
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {announcements.map(ann => (
-                      <div key={ann.id} className="p-8 bg-white rounded-[3rem] border border-gray-100 flex flex-col md:flex-row justify-between items-center group hover:bg-gray-50/30 transition-all">
-                        <div className="flex items-center gap-6">
-                          <div className={`w-14 h-14 ${ann.color} rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0`}><Bell size={24}/></div>
-                          <div className="space-y-1">
-                            <p className="font-black text-xl text-gray-900">{ann.title}</p>
-                            <div className="flex items-center gap-3"><span className={`px-3 py-0.5 ${ann.color} text-white text-[8px] font-black uppercase rounded-md`}>{ann.status}</span><span className="text-[10px] font-bold text-gray-400">{ann.date}</span></div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => handleEditInitiation(ann, 'ann')} className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={18}/></button>
-                          <button onClick={() => performDelete('announcements', ann.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'depts' && (
-                <motion.div key="depts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black font-serif italic text-gray-900 leading-tight">Ministry Ecosystem</h3>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Active RASA Departments</p>
-                    </div>
-                    <button onClick={() => { setEditingItem(null); setShowModal('dept'); }} className="px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-cyan-100 transition-all active:scale-95">
-                      <Plus size={16}/> New Ministry
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {depts.map(d => (
-                      <div key={d.id} className="p-8 bg-white rounded-[3rem] border border-gray-100 flex flex-col justify-between group hover:shadow-2xl hover:shadow-cyan-500/5 transition-all duration-500 relative">
-                        <div className="flex items-start justify-between mb-6">
-                          <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 bg-cyan-50 text-cyan-500 rounded-3xl flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all">
-                              <Star size={28}/>
-                            </div>
-                            <div>
-                              <p className="font-black text-xl text-gray-900 tracking-tight">{d.name}</p>
-                              <p className="text-[10px] font-black text-cyan-600 uppercase tracking-[0.2em]">{d.category || 'Official Ministry'}</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Link to={`/departments/${d.id}`} className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"><Eye size={16}/></Link>
-                            <button onClick={() => handleEditInitiation(d, 'dept')} className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>
-                            <button onClick={() => performDelete('departments', d.id)} className="p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 leading-relaxed font-medium mb-6 line-clamp-2">{d.description}</p>
-                        <div className="pt-6 border-t border-gray-50 flex flex-wrap gap-2">
-                          {d.activities?.slice(0, 3).map((act, idx) => (
-                            <span key={idx} className="px-3 py-1 bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-lg border border-gray-100">{act}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'leaders' && (
-                <motion.div key="leaders" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-2xl font-black font-serif italic text-gray-900">Official Leadership</h3>
-                    <button onClick={() => { setEditingItem(null); setShowModal('leader'); }} className="px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-                      <Plus size={16}/> Add New Leader
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {leaders.map(l => (
-                      <div key={l.id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center text-center space-y-4 group transition-all hover:shadow-xl relative">
-                        <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-gray-50 relative"><img src={l.image} className="w-full h-full object-cover transition-all duration-500" alt={l.name} /></div>
-                        <div className="space-y-1">
-                          <p className="font-black text-gray-900">{l.name}</p>
-                          <p className="text-xs text-cyan-600 font-bold uppercase tracking-widest">{l.position}</p>
-                          <div className="flex items-center justify-center gap-1.5 mt-1">
-                            <Calendar size={12} className="text-gray-400" />
-                            <span className="text-[10px] font-bold text-gray-400 uppercase">{l.academicYear}</span>
-                          </div>
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Phone size={10} className="text-gray-400" />
-                            <span className="text-[10px] font-bold text-gray-400">{l.phone}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <button onClick={() => handleEditInitiation(l, 'leader')} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>
-                          <button onClick={() => performDelete('leaders', l.id)} className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
+              {activeTab === 'overview' && <OverviewTab members={members} news={news} leaders={leaders} announcements={announcements} contactMsgs={contactMsgs} depts={depts} logs={logs} />}
+              {activeTab === 'home' && <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={async (e) => { e.preventDefault(); setIsSyncing(true); await API.home.updateConfig(homeSetup!); setIsSyncing(false); }} />}
+              {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (u) => { setIsSyncing(true); await API.about.updateConfig(u); fetchData(); setIsSyncing(false); }} />}
+              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => setShowModal('member')} onEditMember={(m) => {setEditingItem(m); setShowModal('member');}} onDeleteMember={(id) => commitWipe('members', id)} onToggleAdmin={(m) => {setEditingItem(m); setShowModal('member');}} />}
+              {activeTab === 'content' && <NewsFeedTab news={news} onNew={() => setShowModal('news')} onEdit={(item) => { setEditingItem(item); setShowModal('news'); }} onDelete={(id) => commitWipe('news', id)} />}
+              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => setShowModal('ann')} onEdit={(a) => {setEditingItem(a); setShowModal('ann');}} onDelete={(id) => commitWipe('announcements', id)} />}
+              {activeTab === 'depts' && <MinistriesTab departments={depts} onNew={() => setShowModal('dept')} onEdit={(d) => {setEditingItem(d); setShowModal('dept');}} onDelete={(id) => commitWipe('departments', id)} />}
+              {activeTab === 'leaders' && <LeadershipTab leaders={leaders} onNew={() => setShowModal('leader')} onEdit={(l) => {setEditingItem(l); setShowModal('leader');}} onDelete={(id) => commitWipe('leaders', id)} />}
               {activeTab === 'donations' && <DonationTab user={currentUser} />}
-
-              {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={async (id) => { await API.contacts.markRead(id); fetchData(); }} onMarkAllRead={async () => { await API.contacts.markAllRead(); fetchData(); }} onDelete={(id) => performDelete('contacts', id)} />}
-
-              {activeTab === 'system' && <SystemTab dbHealth={dbHealth} logs={logs} onResetDB={() => { if(window.confirm('Wipe everything?')) API.system.resetDB(); }} />}
+              {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={(id) => API.contacts.markRead(id)} onMarkAllRead={() => API.contacts.markAllRead()} onDelete={(id) => API.contacts.delete(id)} />}
+              {activeTab === 'system' && <SystemTab dbHealth={dbHealth} logs={logs} onResetDB={() => isIT && API.system.resetDB()} />}
             </AnimatePresence>
           </main>
         </div>
       </div>
 
-      {/* Main Editor Modal */}
       <AnimatePresence>
         {showModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-100">
-              <div className="px-10 pt-10 pb-6 border-b border-gray-50 flex justify-between items-center">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-cyan-500 tracking-[0.3em]">Administrator Tool</p>
-                  <h2 className="text-3xl font-black font-serif italic text-gray-900">{editingItem ? 'Edit' : 'Create'} {showModal.toUpperCase()}</h2>
-                </div>
-                <button onClick={closeModals} className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:text-red-500 hover:bg-red-50 transition-all"><X size={20}/></button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-2xl rounded-[3rem] shadow-3xl flex flex-col max-h-[90vh] overflow-hidden border border-white/20">
+              <div className="px-10 pt-10 pb-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                <h2 className="text-3xl font-black font-serif italic text-gray-900">{editingItem ? 'Refine' : 'Initialize'} Record</h2>
+                <button onClick={() => { setShowModal(null); setEditingItem(null); setFilePreview(null); }} className="p-4 bg-white text-gray-400 rounded-2xl hover:text-red-500 border border-gray-100 shadow-sm transition-all"><Plus size={20} className="rotate-45" /></button>
               </div>
               <div className="flex-grow overflow-y-auto p-10 scroll-hide">
-                {showModal === 'leader' && <LeaderForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={saveItem} isSyncing={isSyncing} />}
-                {showModal === 'dept' && <DepartmentForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={saveItem} />}
-                {showModal === 'news' && <NewsForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={saveItem} />}
-                {showModal === 'ann' && <AnnouncementForm editingItem={editingItem} onSubmit={saveItem} />}
+                {showModal === 'news' && <NewsForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
+                {showModal === 'ann' && <AnnouncementForm editingItem={editingItem} onSubmit={handleSave} />}
+                {showModal === 'dept' && <DepartmentForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
+                {showModal === 'leader' && <LeaderForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} isSyncing={isSyncing} />}
                 {showModal === 'member' && (
-                  <form id="main-editor-form" onSubmit={saveItem} className="space-y-6">
+                  <form id="main-editor-form" onSubmit={handleSave} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2 space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Full Name</label><input name="fullName" defaultValue={editingItem?.fullName} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Email</label><input name="email" defaultValue={editingItem?.email} required type="email" className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Phone</label><input name="phone" defaultValue={editingItem?.phone} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="col-span-2 space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Role</label><select name="role" defaultValue={editingItem?.role || 'member'} className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100"><option value="member">Member</option><option value="admin">Admin</option></select></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Program</label><input name="program" defaultValue={editingItem?.program} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Level</label><input name="level" defaultValue={editingItem?.level} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Diocese</label><input name="diocese" defaultValue={editingItem?.diocese} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 ml-4 uppercase tracking-widest">Department</label><input name="department" defaultValue={editingItem?.department} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border border-gray-100" /></div>
+                      <div className="col-span-2 space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Full Name</label><input name="fullName" defaultValue={editingItem?.fullName} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
+                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Email</label><input name="email" defaultValue={editingItem?.email} required type="email" className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
+                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Phone</label><input name="phone" defaultValue={editingItem?.phone} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
+                      
+                      <div className="col-span-2 p-6 rounded-[2rem] border bg-cyan-50/50 border-cyan-100">
+                        <label className="text-[10px] font-black text-gray-800 uppercase flex items-center gap-2 mb-3">Authority Permissions</label>
+                        <select name="role" defaultValue={editingItem?.role || 'member'} className="w-full px-5 py-4 bg-white rounded-2xl font-black text-xs border border-cyan-100 outline-none">
+                          <option value="member">Normal Member</option>
+                          <option value="executive">Executive Committee</option>
+                          <option value="accountant">Financial Accountant</option>
+                          <option value="secretary">Secretariat</option>
+                          <option value="admin">Global Administrator</option>
+                          <option value="it">IT Super Master</option>
+                        </select>
+                      </div>
                     </div>
                   </form>
                 )}
               </div>
-              <div className="p-10 border-t border-gray-50 flex gap-4 bg-gray-50/30">
-                <button type="button" onClick={closeModals} className="flex-grow py-5 bg-white border border-gray-200 text-gray-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-gray-100 active:scale-95 transition-all">Discard</button>
-                <button disabled={isSyncing} form="main-editor-form" type="submit" className="flex-[2] py-5 bg-cyan-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl shadow-cyan-100 flex items-center justify-center gap-3 active:scale-95 transition-all">
-                  {isSyncing ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />} Commit Changes
+              <div className="p-10 border-t border-gray-50 flex gap-4 bg-gray-50/50">
+                <button type="button" onClick={() => { setShowModal(null); setEditingItem(null); }} className="flex-grow py-5 bg-white border border-gray-200 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard</button>
+                <button disabled={isSyncing} form="main-editor-form" type="submit" className="flex-[2] py-5 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 active:scale-95 hover:bg-cyan-600 transition-all">
+                  {isSyncing ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />} Commit Sequential Change
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSuccessModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="bg-white p-12 rounded-[3.5rem] shadow-3xl text-center space-y-6 max-w-sm border border-gray-100">
-              <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 size={40} /></div>
-              <div><h3 className="text-2xl font-black text-gray-900">Success!</h3><p className="text-gray-500 font-medium">{showSuccessModal.message}</p></div>
-              <button onClick={() => setShowSuccessModal(null)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-cyan-500 transition-all">Continue</button>
             </motion.div>
           </motion.div>
         )}

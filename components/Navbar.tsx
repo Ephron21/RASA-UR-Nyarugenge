@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, User as UserIcon, LogOut } from 'lucide-react';
+import { Menu, X, ChevronDown, User as UserIcon, LogOut, LayoutDashboard, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_LINKS } from '../constants';
 import { User, Department } from '../types';
@@ -28,6 +28,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
 
   const isHomePage = location.pathname === '/';
   const navTextColor = (scrolled || !isHomePage) ? 'text-gray-900' : 'text-white';
+
+  const dashboardPath = useMemo(() => {
+    if (!user) return '/portal';
+    const adminRoles = ['it', 'admin', 'executive', 'accountant', 'secretary'];
+    return adminRoles.includes(user.role) ? '/admin' : '/dashboard';
+  }, [user]);
 
   return (
     <nav className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
@@ -77,7 +83,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
                 location.pathname.startsWith('/departments') ? 'text-cyan-500' : navTextColor
               }`}
             >
-              Departments <ChevronDown size={14} className={`transition-transform duration-300 ${showDepts ? 'rotate-180' : ''}`} />
+              Ministries <ChevronDown size={14} className={`transition-transform duration-300 ${showDepts ? 'rotate-180' : ''}`} />
             </Link>
             <AnimatePresence>
               {showDepts && (
@@ -98,9 +104,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
                         {dept.name}
                       </Link>
                     ))}
-                    {departments.length === 0 && (
-                      <p className="p-4 text-xs text-gray-400 italic text-center">No ministries listed.</p>
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -111,19 +114,24 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
         {/* Auth Actions */}
         <div className="hidden lg:flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-4 bg-gray-50 p-1.5 pl-4 rounded-full border border-gray-100">
-              <Link to={user.role === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-3 group">
-                <span className="font-bold text-sm text-gray-700">
-                  {user.fullName.split(' ')[0]}
-                </span>
-                <div className="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">
-                  <UserIcon size={16} />
+            <div className="flex items-center gap-4 bg-gray-50/50 p-1.5 pl-5 rounded-full border border-gray-100 backdrop-blur-md">
+              <Link to={dashboardPath} className="flex items-center gap-3 group">
+                <div className="text-right">
+                  <p className="font-black text-[11px] text-gray-900 leading-none">
+                    {user.fullName.split(' ')[0]}
+                  </p>
+                  <p className="text-[8px] font-black text-cyan-600 uppercase tracking-widest mt-0.5">
+                    {user.role}
+                  </p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-cyan-500 flex items-center justify-center text-white shadow-lg shadow-cyan-100 group-hover:scale-110 transition-transform">
+                  {user.role === 'it' ? <Shield size={18}/> : <UserIcon size={18} />}
                 </div>
               </Link>
               <div className="w-px h-6 bg-gray-200 mx-1"></div>
               <button 
                 onClick={onLogout}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-all"
+                className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
                 title="Logout"
               >
                 <LogOut size={18} />
@@ -132,20 +140,20 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
           ) : (
             <Link 
               to="/portal" 
-              className={`px-8 py-3 rounded-full font-bold text-sm uppercase tracking-widest transition-all transform hover:scale-105 shadow-xl ${
+              className={`px-8 py-3 rounded-full font-black text-[11px] uppercase tracking-[0.2em] transition-all transform hover:scale-105 shadow-xl ${
                 scrolled || !isHomePage 
                   ? 'bg-cyan-500 text-white shadow-cyan-100 hover:bg-cyan-600' 
                   : 'bg-white text-cyan-600 hover:bg-gray-100 shadow-white/20'
               }`}
             >
-              Portal
+              Access Portal
             </Link>
           )}
         </div>
 
         {/* Mobile Toggle */}
-        <button className={navTextColor} onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? <X size={32} /> : <Menu size={32} />}
+        <button className={`p-2 rounded-xl lg:hidden ${navTextColor}`} onClick={() => setIsOpen(!isOpen)}>
+          {isOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
 
@@ -156,37 +164,31 @@ const Navbar: React.FC<NavbarProps> = ({ user, departments, onLogout }) => {
             initial={{ opacity: 0, x: '100%' }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="fixed inset-0 bg-white z-[60] lg:hidden flex flex-col p-8"
           >
             <div className="flex justify-between items-center mb-12">
               <span className="font-black text-3xl tracking-tighter">RASA <span className="text-cyan-500">NYG</span></span>
-              <button onClick={() => setIsOpen(false)} className="p-2 bg-gray-100 rounded-full"><X size={28} /></button>
+              <button onClick={() => setIsOpen(false)} className="p-2 bg-gray-100 rounded-2xl"><X size={28} /></button>
             </div>
             <div className="flex flex-col gap-6 text-2xl font-black">
               {NAV_LINKS.map(link => (
-                <Link key={link.name} to={link.href} className="hover:text-cyan-500 flex items-center justify-between">
-                  {link.name} <ChevronDown size={20} className="-rotate-90 text-gray-300" />
+                <Link key={link.name} to={link.href} className="hover:text-cyan-500">
+                  {link.name}
                 </Link>
               ))}
-              <Link to="/departments" className="hover:text-cyan-500 flex items-center justify-between">
-                Departments <ChevronDown size={20} className="-rotate-90 text-gray-300" />
-              </Link>
               <div className="h-px bg-gray-100 my-4"></div>
-              <div className="flex flex-col gap-6">
-                 {user ? (
-                   <>
-                     <Link to={user.role === 'admin' ? '/admin' : '/dashboard'} className="text-cyan-600 flex items-center justify-between">
-                       My Dashboard <UserIcon size={24} />
-                     </Link>
-                     <button onClick={onLogout} className="text-red-500 text-left flex items-center justify-between">
-                       Logout <LogOut size={24} />
-                     </button>
-                   </>
-                 ) : (
-                   <Link to="/portal" className="bg-cyan-500 text-white py-5 px-8 rounded-3xl text-center shadow-2xl shadow-cyan-100">Member Portal</Link>
-                 )}
-              </div>
+              {user ? (
+                 <div className="space-y-6">
+                    <Link to={dashboardPath} className="flex items-center gap-4 text-cyan-600">
+                      <LayoutDashboard size={28} /> Dashboard
+                    </Link>
+                    <button onClick={onLogout} className="flex items-center gap-4 text-red-500">
+                      <LogOut size={28} /> Sign Out
+                    </button>
+                 </div>
+              ) : (
+                 <Link to="/portal" className="bg-cyan-500 text-white py-6 rounded-3xl text-center shadow-2xl">Member Portal</Link>
+              )}
             </div>
           </motion.div>
         )}

@@ -5,7 +5,7 @@ import {
   Bell, Info, AlertTriangle, CheckCircle, 
   ArrowRight, Star, Clock, Filter, 
   Calendar, Megaphone, Sparkles, Search,
-  ChevronRight
+  ChevronRight, AlertCircle
 } from 'lucide-react';
 import { Announcement } from '../types';
 
@@ -23,6 +23,7 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
     'Info': Info
   };
 
+  // Requirement: Only active announcements are visible
   const filteredAnnouncements = useMemo(() => {
     return announcements
       .filter(a => a.isActive)
@@ -66,11 +67,6 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
             Stay synchronized with the latest spiritual mandates, campus updates, 
             and official RASA UR-Nyarugenge communications.
           </motion.p>
-
-          {/* Decorative floating element */}
-          <div className="absolute top-0 right-0 hidden xl:block pointer-events-none opacity-5">
-            <Bell size={300} strokeWidth={1} />
-          </div>
         </header>
 
         {/* Filter Bar */}
@@ -119,10 +115,18 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="mb-24"
             >
-              <div className="bg-gray-900 rounded-[4rem] p-12 md:p-20 text-white relative overflow-hidden shadow-3xl">
+              <div className={`bg-gray-900 rounded-[4rem] p-12 md:p-20 text-white relative overflow-hidden shadow-3xl transition-all duration-500 ${latestAnnouncement.status === 'Urgent' ? 'ring-8 ring-orange-500/20' : ''}`}>
                 {/* Background accents */}
                 <div className={`absolute top-0 right-0 w-1/2 h-full ${latestAnnouncement.color} opacity-20 blur-[120px] pointer-events-none`}></div>
                 
+                {/* Visual Indicator for Urgent */}
+                {latestAnnouncement.status === 'Urgent' && (
+                  <div className="absolute top-10 right-10 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full animate-ping"></div>
+                    <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Critical Priority</span>
+                  </div>
+                )}
+
                 <div className="relative z-10 flex flex-col md:flex-row gap-16 items-center">
                   <div className="shrink-0 space-y-6 text-center md:text-left">
                     <div className={`w-24 h-24 ${latestAnnouncement.color} rounded-[2.5rem] flex items-center justify-center text-white shadow-2xl ring-8 ring-white/5`}>
@@ -141,7 +145,7 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
                       <div className="flex items-center gap-4 text-white/40 text-xs font-black uppercase tracking-widest">
                         <Calendar size={16} className="text-cyan-400" /> {new Date(latestAnnouncement.date).toLocaleDateString(undefined, { dateStyle: 'full' })}
                         <div className="w-1 h-1 bg-white/20 rounded-full"></div>
-                        <Clock size={16} /> JUST POSTED
+                        <Clock size={16} /> RECENT BROADCAST
                       </div>
                       <h2 className="text-4xl md:text-7xl font-bold font-serif italic leading-tight">
                         {latestAnnouncement.title}
@@ -154,7 +158,7 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
 
                     <div className="pt-6">
                       <button className="px-12 py-5 bg-white text-gray-900 rounded-full font-black text-xs uppercase tracking-widest hover:bg-cyan-500 hover:text-white transition-all shadow-2xl flex items-center gap-4 group">
-                        Acknowledge Receipt <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                        Confirm Understanding <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                       </button>
                     </div>
                   </div>
@@ -172,6 +176,8 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
           <AnimatePresence mode="popLayout">
             {standardAnnouncements.map((alert, idx) => {
               const Icon = IconMap[alert.status] || Info;
+              const isUrgent = alert.status === 'Urgent';
+              
               return (
                 <motion.div 
                   key={alert.id}
@@ -185,22 +191,23 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
                   <div className="flex flex-col md:flex-row gap-12 items-start">
                     {/* Date Sidecar */}
                     <div className="absolute left-0 top-12 hidden md:block w-32 text-right">
-                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Archived</p>
+                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Posted</p>
                       <p className="font-black text-gray-900 text-lg">{new Date(alert.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p>
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em]">{new Date(alert.date).getFullYear()}</p>
                     </div>
 
                     {/* Content Card */}
-                    <div className="flex-grow bg-white p-10 md:p-14 rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-700 relative group-hover:-translate-y-2">
+                    <div className={`flex-grow bg-white p-10 md:p-14 rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-700 relative group-hover:-translate-y-2 ${isUrgent ? 'border-orange-100 bg-orange-50/5' : ''}`}>
                       {/* Timeline Dot & Icon */}
-                      <div className={`absolute -left-[3.25rem] md:-left-[7.75rem] top-12 w-10 h-10 ${alert.color} rounded-2xl flex items-center justify-center text-white shadow-xl ring-8 ring-[#FAFBFC] z-10 transition-transform group-hover:scale-110 group-hover:rotate-12`}>
+                      <div className={`absolute -left-[3.25rem] md:-left-[7.75rem] top-12 w-10 h-10 ${alert.color} rounded-2xl flex items-center justify-center text-white shadow-xl ring-8 ring-[#FAFBFC] z-10 transition-transform group-hover:scale-110 group-hover:rotate-12 ${isUrgent ? 'animate-pulse' : ''}`}>
                         <Icon size={18} />
                       </div>
 
                       <div className="space-y-6">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className={`px-4 py-1 bg-white border ${alert.color.replace('bg-', 'border-')} ${alert.color.replace('bg-', 'text-')} rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm`}>
+                            <span className={`px-4 py-1 bg-white border ${alert.color.replace('bg-', 'border-')} ${alert.color.replace('bg-', 'text-')} rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2`}>
+                              {isUrgent && <AlertCircle size={10} className="animate-pulse" />}
                               {alert.status}
                             </span>
                           </div>
@@ -209,7 +216,7 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
                           </span>
                         </div>
                         
-                        <h3 className="text-3xl font-black text-gray-900 font-serif italic tracking-tight leading-tight group-hover:text-cyan-600 transition-colors">
+                        <h3 className={`text-3xl font-black text-gray-900 font-serif italic tracking-tight leading-tight group-hover:text-cyan-600 transition-colors ${isUrgent ? 'text-orange-950' : ''}`}>
                           {alert.title}
                         </h3>
                         <p className="text-gray-500 text-lg leading-relaxed max-w-3xl font-medium">
@@ -217,8 +224,8 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
                         </p>
 
                         <div className="pt-8 flex items-center gap-4">
-                           <button className="text-cyan-600 font-black text-[11px] uppercase tracking-[0.3em] flex items-center gap-3 group/link">
-                             Protocol details <ArrowRight size={14} className="group-hover/link:translate-x-2 transition-transform" />
+                           <button className={`font-black text-[11px] uppercase tracking-[0.3em] flex items-center gap-3 group/link ${isUrgent ? 'text-orange-600' : 'text-cyan-600'}`}>
+                             Mandate details <ArrowRight size={14} className="group-hover/link:translate-x-2 transition-transform" />
                            </button>
                         </div>
                       </div>
@@ -239,55 +246,20 @@ const Announcements: React.FC<AnnouncementsProps> = ({ announcements }) => {
                 <Megaphone size={48} strokeWidth={1.5} />
               </div>
               <div className="space-y-3">
-                <h3 className="text-3xl font-bold font-serif text-gray-400 italic">No broadcasts matched your inquiry</h3>
+                <h3 className="text-3xl font-bold font-serif text-gray-400 italic">No active bulletins match your filter</h3>
                 <p className="text-gray-400 max-w-sm mx-auto font-medium">
-                  Try adjusting your search criteria or selecting a different priority filter.
+                  The leadership council has no active mandates for this criteria. Check back later for campus updates.
                 </p>
               </div>
               <button 
                 onClick={() => { setActiveFilter('All'); setSearchQuery(''); }} 
                 className="px-10 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-100 hover:bg-cyan-600 active:scale-95 transition-all"
               >
-                Clear All Filters
+                Restore Global Feed
               </button>
             </motion.div>
           )}
         </div>
-
-        {/* CTA Section */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          className="mt-32 p-16 md:p-24 bg-cyan-900 rounded-[5rem] text-center text-white relative overflow-hidden shadow-3xl"
-        >
-          <div className="relative z-10 space-y-10">
-            <div className="relative inline-block">
-              <div className="absolute -inset-6 bg-cyan-400/20 rounded-full blur-2xl animate-pulse"></div>
-              <Megaphone className="mx-auto text-cyan-400 relative z-10" size={64} fill="currentColor" />
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-4xl md:text-6xl font-bold font-serif italic">Divine <span className="text-cyan-400">Notifications</span></h3>
-              <p className="opacity-70 max-w-xl mx-auto text-xl font-light">Enable push notifications to receive real-time mandates from the leadership council directly to your device.</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-6">
-              <button className="px-12 py-6 bg-cyan-500 text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-white hover:text-cyan-900 transition-all shadow-2xl flex items-center gap-4">
-                Enable Alert System <Sparkles size={18} />
-              </button>
-              <button className="px-12 py-6 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all">
-                Learn Protocol
-              </button>
-            </div>
-          </div>
-          
-          {/* Background Decorative patterns */}
-          <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
-             <div className="grid grid-cols-12 gap-10 rotate-12 -translate-y-20 -translate-x-20 scale-150">
-               {Array.from({ length: 48 }).map((_, i) => (
-                 <Bell key={i} size={40} className="text-white" />
-               ))}
-             </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

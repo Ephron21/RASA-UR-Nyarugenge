@@ -31,26 +31,29 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
       <div className="relative z-10 text-center px-4 max-w-5xl">
         <motion.div 
           initial={{ opacity: 0, y: -20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ delay: 0.3 }}
+          whileInView={{ opacity: 1, y: 0 }} 
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
           className="inline-flex items-center gap-3 px-6 py-2 bg-cyan-500/10 backdrop-blur-xl border border-cyan-500/30 rounded-full text-cyan-400 font-black text-xs uppercase tracking-[0.4em] mb-10"
         >
           <Sparkles size={14} className="animate-pulse" /> {config.motto}
         </motion.div>
 
         <motion.h1 
-          initial={{ y: 30, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }} 
-          transition={{ delay: 0.5, duration: 0.8 }}
+          initial={{ y: 40, opacity: 0, scale: 0.92 }} 
+          whileInView={{ y: 0, opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
           className="text-6xl md:text-9xl font-bold text-white mb-8 font-serif italic leading-tight tracking-tight"
         >
           {config.heroTitle}
         </motion.h1>
 
         <motion.p 
-          initial={{ y: 20, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }} 
-          transition={{ delay: 0.7 }}
+          initial={{ y: 30, opacity: 0, scale: 0.98 }} 
+          whileInView={{ y: 0, opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.6, duration: 1, ease: "easeOut" }}
           className="text-xl md:text-3xl text-gray-300 mb-16 tracking-wide font-light max-w-3xl mx-auto leading-relaxed"
         >
           {config.heroSubtitle}
@@ -58,8 +61,9 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
 
         <motion.div 
           initial={{ y: 20, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }} 
-          transition={{ delay: 0.9 }}
+          whileInView={{ y: 0, opacity: 1 }} 
+          viewport={{ once: true }}
+          transition={{ delay: 0.8 }}
           className="flex flex-wrap justify-center gap-6"
         >
           <Link 

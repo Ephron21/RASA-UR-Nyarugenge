@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Upload, UserCheck, GraduationCap, Shield, Save, X, Loader2, Star, CheckCircle2, AlertCircle, Phone } from 'lucide-react';
+import { Camera, Upload, UserCheck, GraduationCap, Shield, Save, X, Loader2, Star, CheckCircle2, AlertCircle, Phone, ChevronDown } from 'lucide-react';
 import { Leader } from '../../types';
 
 interface LeaderFormProps {
@@ -17,7 +17,7 @@ interface LeaderFormProps {
 const ACADEMIC_YEARS = Array.from({ length: 2050 - 1997 + 1 }, (_, i) => {
   const startYear = 1997 + i;
   return `${startYear}-${startYear + 1}`;
-}).reverse(); // Show latest years first
+}).reverse();
 
 const LeaderForm: React.FC<LeaderFormProps> = ({
   editingItem,
@@ -30,6 +30,7 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageError, setImageError] = useState(false);
+  const [selectedType, setSelectedType] = useState<'Executive' | 'Arbitration'>(editingItem?.type || 'Executive');
   
   // Dynamic image source priority
   const currentImage = filePreview || urlInput || editingItem?.image || '';
@@ -52,7 +53,7 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
         
         <div 
           onClick={() => fileInputRef.current?.click()}
-          className={`relative w-56 h-56 rounded-[3.5rem] bg-gray-50 border-4 border-dashed transition-all duration-500 flex items-center justify-center cursor-pointer overflow-hidden group shadow-inner ${
+          className={`relative w-64 h-64 rounded-[4rem] bg-gray-50 border-4 border-dashed transition-all duration-500 flex items-center justify-center cursor-pointer overflow-hidden group shadow-inner ${
             filePreview || urlInput ? 'border-cyan-500 bg-white ring-8 ring-cyan-50' : 'border-gray-200 hover:border-cyan-400 hover:bg-white'
           }`}
         >
@@ -72,7 +73,6 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
             </div>
           )}
           
-          {/* Hover Overlay */}
           <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-cyan-600/5 backdrop-blur-[2px]">
             <div className="p-4 bg-white rounded-2xl shadow-xl flex flex-col items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform">
               <Upload className="text-cyan-600" size={24} />
@@ -80,11 +80,10 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
             </div>
           </div>
 
-          {/* Selection Feedback */}
           {(filePreview || (urlInput && !imageError)) && (
-            <div className="absolute top-4 right-4 animate-bounce">
+            <div className="absolute top-6 right-6 animate-bounce">
               <div className="p-2 bg-green-500 text-white rounded-full shadow-lg">
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={20} />
               </div>
             </div>
           )}
@@ -119,82 +118,95 @@ const LeaderForm: React.FC<LeaderFormProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-        {/* Basic Info */}
+        {/* Leader Type Segmented Control */}
+        <div className="md:col-span-2 space-y-4">
+          <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
+            <Shield size={14} className="text-cyan-500" /> Council Membership
+          </label>
+          <div className="flex p-1.5 bg-gray-100 rounded-[2rem] w-full max-w-md mx-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedType('Executive')}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[1.6rem] font-black text-[10px] uppercase tracking-widest transition-all ${
+                selectedType === 'Executive' 
+                  ? 'bg-white text-gray-900 shadow-xl' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Star size={14} className={selectedType === 'Executive' ? 'text-cyan-500' : ''} />
+              Executive
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedType('Arbitration')}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[1.6rem] font-black text-[10px] uppercase tracking-widest transition-all ${
+                selectedType === 'Arbitration' 
+                  ? 'bg-gray-900 text-white shadow-xl' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Shield size={14} className={selectedType === 'Arbitration' ? 'text-cyan-400' : ''} />
+              Arbitration
+            </button>
+          </div>
+          <input type="hidden" name="type" value={selectedType} />
+        </div>
+
         <div className="md:col-span-2 space-y-3">
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
-            <UserCheck size={14} className="text-cyan-500" /> Professional Identity
+            <UserCheck size={14} className="text-cyan-500" /> Full Legal Name
           </label>
           <input 
             name="name" 
             defaultValue={editingItem?.name} 
             required 
-            placeholder="e.g. Alain Christian"
-            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white focus:ring-4 focus:ring-cyan-50/50 outline-none transition-all" 
+            placeholder="e.g. Esron Tuyishime"
+            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white focus:ring-4 focus:ring-cyan-50/50 outline-none transition-all shadow-inner" 
           />
         </div>
 
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
-            <Shield size={14} className="text-cyan-500" /> Designation
+            <Star size={14} className="text-cyan-500" /> Current Position
           </label>
           <input 
             name="position" 
             defaultValue={editingItem?.position} 
             required 
-            placeholder="e.g. President"
-            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none transition-all" 
+            placeholder="e.g. Representative"
+            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none transition-all shadow-inner" 
           />
         </div>
 
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
-            <Phone size={14} className="text-cyan-500" /> Contact Number
+            <Phone size={14} className="text-cyan-500" /> Contact Phone
           </label>
           <input 
             name="phone" 
             defaultValue={editingItem?.phone} 
             required 
-            placeholder="e.g. +250 787 846 433"
-            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none transition-all" 
+            placeholder="e.g. +250 780 000 000"
+            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none transition-all shadow-inner" 
           />
         </div>
 
-        {/* Improved Selections */}
-        <div className="space-y-3">
+        <div className="md:col-span-2 space-y-3">
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
-            <GraduationCap size={14} className="text-cyan-500" /> Academic Term
+            <GraduationCap size={14} className="text-cyan-500" /> Academic Tenure
           </label>
-          <div className="relative group">
+          <div className="relative">
             <select 
               name="academicYear" 
               defaultValue={editingItem?.academicYear || '2024-2025'} 
-              className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all"
+              className="w-full pl-8 pr-12 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-black text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all shadow-inner"
             >
               {ACADEMIC_YEARS.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
-              <X size={16} className="rotate-45" />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-[0.2em]">
-            <Star size={14} className="text-cyan-500" /> Organizational Category
-          </label>
-          <div className="relative group">
-            <select 
-              name="type" 
-              defaultValue={editingItem?.type || 'Executive'} 
-              className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all"
-            >
-              <option value="Executive">Executive Committee (Core Leadership)</option>
-              <option value="Arbitration">CA Committee (Advisory & Legal)</option>
-            </select>
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
-              <X size={16} className="rotate-45" />
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <ChevronDown size={20} />
             </div>
           </div>
         </div>

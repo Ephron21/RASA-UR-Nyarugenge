@@ -9,13 +9,14 @@ const NewsSchema = new Schema({
   mediaUrl: { type: String, required: true },
   mediaType: { type: String, enum: ['image', 'video', 'audio'], default: 'image' },
   author: { type: String, default: 'Admin' },
-  date: { type: Date, default: Date.now }
+  date: { type: String, default: () => new Date().toISOString().split('T')[0] }
 });
 
 // LEADER MODEL
 const LeaderSchema = new Schema({
   name: { type: String, required: true },
   position: { type: String, required: true },
+  phone: { type: String, required: true },
   academicYear: { type: String, required: true },
   image: { type: String, required: true },
   type: { type: String, enum: ['Executive', 'Arbitration'], default: 'Executive' }
@@ -25,7 +26,7 @@ const LeaderSchema = new Schema({
 const AnnouncementSchema = new Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
-  date: { type: Date, default: Date.now },
+  date: { type: String, default: () => new Date().toISOString().split('T')[0] },
   status: { type: String, enum: ['Notice', 'Urgent', 'Info'], default: 'Info' },
   color: { type: String, required: true },
   isActive: { type: Boolean, default: true }
@@ -70,6 +71,7 @@ const DonationProjectSchema = new Schema({
 const ContactMessageSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true },
+  phone: { type: String },
   subject: { type: String, required: true },
   message: { type: String, required: true },
   date: { type: Date, default: Date.now },
@@ -93,12 +95,32 @@ const HomeConfigSchema = new Schema({
   stat2Label: { type: String }
 });
 
+// ABOUT CONFIG MODEL
+const AboutConfigSchema = new Schema({
+  heroTitle: String,
+  heroSubtitle: String,
+  heroImage: String,
+  historyTitle: String,
+  historyContent: String,
+  historyImage: String,
+  visionTitle: String,
+  visionContent: String,
+  missionTitle: String,
+  missionContent: String,
+  values: [{ id: String, title: String, description: String, icon: String }],
+  timeline: [{ id: String, year: String, title: String, description: String }]
+});
+
 // MEMBER MODEL
 const MemberSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
-  role: { type: String, enum: ['member', 'admin'], default: 'member' },
+  role: { 
+    type: String, 
+    enum: ['member', 'admin', 'executive', 'accountant', 'secretary', 'it', 'guest'], 
+    default: 'member' 
+  },
   program: { type: String, required: true },
   level: { type: String, required: true },
   diocese: { type: String, required: true },
@@ -115,4 +137,5 @@ export const Donation = mongoose.model('Donation', DonationSchema);
 export const DonationProject = mongoose.model('DonationProject', DonationProjectSchema);
 export const ContactMessage = mongoose.model('ContactMessage', ContactMessageSchema);
 export const HomeConfig = mongoose.model('HomeConfig', HomeConfigSchema);
+export const AboutConfig = mongoose.model('AboutConfig', AboutConfigSchema);
 export const Member = mongoose.model('Member', MemberSchema);

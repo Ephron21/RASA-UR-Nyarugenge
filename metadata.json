@@ -1,6 +1,6 @@
 {
   "name": "RASA UR-Nyarugenge Portal",
-  "description": "A modern, interactive platform for the Rwanda Anglican Students Association at the University of Rwanda, Nyarugenge Campus. Features member management, admin dashboard, news feed, and spiritual resources.",
+  "description": "A modern, interactive platform for the Rwanda Anglican Students Association at the University of Rwanda, Nyarugenge Campus. Features secure member management, advanced admin dashboard with system recovery, spirit feed, and spiritual resources.",
   "requestFramePermissions": [
     "camera"
   ]
