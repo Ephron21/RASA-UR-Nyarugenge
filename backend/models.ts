@@ -1,7 +1,60 @@
 
 import mongoose, { Schema } from 'mongoose';
 
-// NEWS MODEL
+// SPIRITUAL HUB MODELS
+const DailyVerseSchema = new Schema({
+  theme: { type: String, required: true },
+  verse: { type: String, required: true },
+  reference: { type: String, required: true },
+  description: { type: String, required: true },
+  date: { type: String, required: true },
+  isActive: { type: Boolean, default: true }
+});
+
+const VerseReflectionSchema = new Schema({
+  verseId: { type: String, required: true },
+  userId: { type: String, required: true },
+  userName: { type: String, required: true },
+  content: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const BibleQuizSchema = new Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  timeLimit: { type: Number, required: true },
+  isActive: { type: Boolean, default: true },
+  date: { type: String, required: true },
+  questions: [{
+    id: String,
+    text: String,
+    type: { type: String, enum: ['mcq', 'open'], default: 'mcq' },
+    options: [String],
+    correctAnswer: String
+  }]
+});
+
+const QuizResultSchema = new Schema({
+  quizId: { type: String, required: true },
+  userId: { type: String, required: true },
+  score: { type: Number, required: true },
+  total: { type: Number, required: true },
+  timestamp: { type: Date, default: Date.now }
+});
+
+// SYSTEM & AUTH MODELS
+const LogSchema = new Schema({
+  action: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const OTPSchema = new Schema({
+  email: { type: String, required: true },
+  otp: { type: String, required: true },
+  expires: { type: Number, required: true }
+});
+
+// ORIGINAL CMS MODELS
 const NewsSchema = new Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
@@ -14,7 +67,6 @@ const NewsSchema = new Schema({
   endDate: { type: String }
 });
 
-// LEADER MODEL
 const LeaderSchema = new Schema({
   name: { type: String, required: true },
   position: { type: String, required: true },
@@ -24,7 +76,6 @@ const LeaderSchema = new Schema({
   type: { type: String, enum: ['Executive', 'Arbitration'], default: 'Executive' }
 });
 
-// ANNOUNCEMENT MODEL
 const AnnouncementSchema = new Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
@@ -34,7 +85,6 @@ const AnnouncementSchema = new Schema({
   isActive: { type: Boolean, default: true }
 });
 
-// DEPARTMENT MODEL
 const DepartmentSchema = new Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
@@ -45,7 +95,6 @@ const DepartmentSchema = new Schema({
   activities: [{ type: String }]
 });
 
-// DEPARTMENT INTEREST (RECRUITMENT) MODEL
 const DepartmentInterestSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true },
@@ -61,7 +110,6 @@ const DepartmentInterestSchema = new Schema({
   date: { type: Date, default: Date.now }
 });
 
-// DONATION MODEL
 const DonationSchema = new Schema({
   donorName: { type: String, required: true },
   email: { type: String, required: true },
@@ -75,7 +123,6 @@ const DonationSchema = new Schema({
   transactionId: { type: String, unique: true }
 });
 
-// DONATION PROJECT MODEL
 const DonationProjectSchema = new Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -85,7 +132,6 @@ const DonationProjectSchema = new Schema({
   isActive: { type: Boolean, default: true }
 });
 
-// CONTACT MESSAGE MODEL
 const ContactMessageSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true },
@@ -96,7 +142,6 @@ const ContactMessageSchema = new Schema({
   isRead: { type: Boolean, default: false }
 });
 
-// HOME CONFIG MODEL
 const HomeConfigSchema = new Schema({
   heroTitle: { type: String, required: true },
   heroSubtitle: { type: String, required: true },
@@ -113,7 +158,6 @@ const HomeConfigSchema = new Schema({
   stat2Label: { type: String }
 });
 
-// ABOUT CONFIG MODEL
 const AboutConfigSchema = new Schema({
   heroTitle: String,
   heroSubtitle: String,
@@ -129,10 +173,10 @@ const AboutConfigSchema = new Schema({
   timeline: [{ id: String, year: String, title: String, description: String }]
 });
 
-// MEMBER MODEL
 const MemberSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
+  password: { type: String },
   phone: { type: String, required: true },
   role: { 
     type: String, 
@@ -144,8 +188,17 @@ const MemberSchema = new Schema({
   diocese: { type: String, required: true },
   department: { type: String, required: true },
   profileImage: { type: String },
+  spiritPoints: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
+
+// EXPORTS
+export const DailyVerse = mongoose.model('DailyVerse', DailyVerseSchema);
+export const VerseReflection = mongoose.model('VerseReflection', VerseReflectionSchema);
+export const BibleQuiz = mongoose.model('BibleQuiz', BibleQuizSchema);
+export const QuizResult = mongoose.model('QuizResult', QuizResultSchema);
+export const SystemLog = mongoose.model('SystemLog', LogSchema);
+export const OTPRecord = mongoose.model('OTPRecord', OTPSchema);
 
 export const News = mongoose.model('News', NewsSchema);
 export const Leader = mongoose.model('Leader', LeaderSchema);

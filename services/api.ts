@@ -66,7 +66,8 @@ export const API = {
       update: (id: string, updates: any) => hybridFetch(`spiritual/verses/${id}`, 'PUT', updates, () => db.update('verses', id, updates)),
       delete: (id: string) => hybridFetch(`spiritual/verses/${id}`, 'DELETE', null, () => db.delete('verses', id)),
       addReflection: (r: VerseReflection) => hybridFetch('spiritual/reflections', 'POST', r, () => db.insert('reflections', r)),
-      getReflections: () => hybridFetch('spiritual/reflections', 'GET', null, () => db.getCollection('reflections'))
+      getReflections: () => hybridFetch('spiritual/reflections', 'GET', null, () => db.getCollection('reflections')),
+      deleteReflection: (id: string) => hybridFetch(`spiritual/reflections/${id}`, 'DELETE', null, () => db.delete('reflections', id))
     },
     quizzes: {
       getAll: () => hybridFetch('spiritual/quizzes', 'GET', null, () => db.getCollection('quizzes')),
@@ -84,7 +85,8 @@ export const API = {
         await db.update('members', r.userId, { spiritPoints: (points || 0) });
         return res;
       }),
-      getResults: () => hybridFetch('spiritual/quiz-results', 'GET', null, () => db.getCollection('quizResults'))
+      getResults: () => hybridFetch('spiritual/quiz-results', 'GET', null, () => db.getCollection('quizResults')),
+      deleteResult: (id: string) => hybridFetch(`spiritual/quiz-results/${id}`, 'DELETE', null, () => db.delete('quizResults', id))
     }
   },
   news: {
