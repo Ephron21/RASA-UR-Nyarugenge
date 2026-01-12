@@ -17,7 +17,7 @@ import Departments from './pages/Departments';
 import Donations from './pages/Donations';
 import About from './pages/About';
 import ProtectedRoute from './components/ProtectedRoute';
-import { User, NewsItem, Leader, Announcement, Department } from './types';
+import { User, NewsItem, Leader, Announcement, Department, FooterConfig } from './types';
 import { API } from './services/api';
 import { DEPARTMENTS as INITIAL_DEPTS } from './constants';
 
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [members, setMembers] = useState<User[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
 
@@ -48,15 +49,17 @@ const App: React.FC = () => {
           API.leaders.getAll(),
           API.members.getAll(),
           API.announcements.getAll(),
-          API.departments.getAll()
+          API.departments.getAll(),
+          API.footer.getConfig()
         ]);
 
-        const [newsRes, leadersRes, membersRes, announcementsRes, deptsRes] = results;
+        const [newsRes, leadersRes, membersRes, announcementsRes, deptsRes, footerRes] = results;
 
         if (newsRes.status === 'fulfilled') setNews(newsRes.value || []);
         if (leadersRes.status === 'fulfilled') setLeaders(leadersRes.value || []);
         if (membersRes.status === 'fulfilled') setMembers(membersRes.value || []);
         if (announcementsRes.status === 'fulfilled') setAnnouncements(announcementsRes.value || []);
+        if (footerRes.status === 'fulfilled') setFooterConfig(footerRes.value);
         if (deptsRes.status === 'fulfilled') {
           const depts = deptsRes.value || [];
           setDepartments(depts.length > 0 ? depts : INITIAL_DEPTS);
@@ -82,6 +85,11 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('rasa_user');
+  };
+
+  const handleUpdateSelf = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('rasa_user', JSON.stringify(updatedUser));
   };
 
   if (isLoading) {
@@ -144,6 +152,8 @@ const App: React.FC = () => {
                     onUpdateMembers={setMembers}
                     onUpdateAnnouncements={setAnnouncements}
                     onUpdateDepartments={setDepartments}
+                    onUpdateSelf={handleUpdateSelf}
+                    onUpdateFooter={setFooterConfig}
                   />
                 </ProtectedRoute>
               } 
@@ -154,7 +164,7 @@ const App: React.FC = () => {
         </AnimatePresence>
       </main>
 
-      <Footer />
+      <Footer departments={departments} config={footerConfig} />
     </div>
   );
 };

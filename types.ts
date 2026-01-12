@@ -87,6 +87,20 @@ export interface ContactMessage {
   isRead: boolean;
 }
 
+export interface FooterConfig {
+  description: string;
+  facebookUrl: string;
+  twitterUrl: string;
+  instagramUrl: string;
+  linkedinUrl: string;
+  youtubeUrl: string;
+  whatsappUrl: string;
+  tiktokUrl: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
 export interface DailyVerse {
   id: string;
   theme: string;
@@ -106,11 +120,12 @@ export interface VerseReflection {
   timestamp: string;
 }
 
+// Fixed missing QuizQuestion interface definition
 export interface QuizQuestion {
   id: string;
   text: string;
   type: 'mcq' | 'open';
-  options?: string[]; // For MCQ
+  options: string[];
   correctAnswer: string;
 }
 

@@ -5,9 +5,10 @@ import {
   Users, Newspaper, UserCheck, Plus, 
   LayoutDashboard, Home as HomeIcon, Heart, 
   MessageSquare, Briefcase, Bell, HardDrive, 
-  History, Shield, Loader2, Database, Search, Sparkles
+  History, Shield, Loader2, Database, Search, Sparkles, User as UserIcon, Settings,
+  Type
 } from 'lucide-react';
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig } from '../types';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig, FooterConfig } from '../types';
 import { API } from '../services/api';
 
 // Modular Tab Components
@@ -23,6 +24,8 @@ import DonationTab from '../components/admin/DonationTab';
 import InboxTab from '../components/admin/InboxTab';
 import SystemTab from '../components/admin/SystemTab';
 import SpiritualHubTab from '../components/admin/SpiritualHubTab';
+import ProfileEditorTab from '../components/admin/ProfileEditorTab';
+import FooterEditorTab from '../components/admin/FooterEditorTab';
 
 // Modal Forms
 import NewsForm from '../components/admin/NewsForm';
@@ -42,11 +45,13 @@ interface AdminDashboardProps {
   onUpdateMembers: (members: User[]) => void;
   onUpdateAnnouncements: (announcements: Announcement[]) => void;
   onUpdateDepartments: (depts: Department[]) => void;
+  onUpdateSelf: (user: User) => void;
+  onUpdateFooter: (config: FooterConfig) => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user: currentUser, members, news, leaders, announcements, depts,
-  onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments
+  onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments, onUpdateSelf, onUpdateFooter
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -56,6 +61,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [contactMsgs, setContactMsgs] = useState<ContactMessage[]>([]);
   const [homeSetup, setHomeSetup] = useState<HomeConfig | null>(null);
   const [aboutSetup, setAboutSetup] = useState<AboutConfig | null>(null);
+  const [footerSetup, setFooterSetup] = useState<FooterConfig | null>(null);
 
   // Modal Control
   const [showModal, setShowModal] = useState<'news' | 'leader' | 'ann' | 'dept' | 'member' | null>(null);
@@ -73,22 +79,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const rolePermissions = useMemo(() => ({
     canViewTab: (tabId: string) => {
       if (isIT) return true;
-      if (isAccountant) return ['overview', 'donations'].includes(tabId);
-      if (isSecretary) return ['overview', 'members', 'content', 'bulletin', 'contacts'].includes(tabId);
+      if (isAccountant) return ['overview', 'donations', 'profile'].includes(tabId);
+      if (isSecretary) return ['overview', 'members', 'content', 'bulletin', 'contacts', 'profile'].includes(tabId);
       if (isExecutive) return tabId !== 'system';
-      return tabId === 'overview';
+      return ['overview', 'profile'].includes(tabId);
     },
     canManageMembers: isIT,
+    canManageBulletins: isIT,
     canUpdateContent: isIT || isSecretary || isAdmin || isExecutive,
     canDelete: isIT,
-    // Strictly restrict donation verification to the Accountant role
     canVerifyDonations: isAccountant
   }), [currentUser.role]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'profile', label: 'My Profile', icon: UserIcon },
     { id: 'home', label: 'Home Editor', icon: HomeIcon },
     { id: 'about', label: 'About Editor', icon: History },
+    { id: 'footer', label: 'Footer Editor', icon: Type },
     { id: 'spiritual', label: 'Spiritual Hub', icon: Sparkles },
     { id: 'members', label: 'Directory', icon: Users },
     { id: 'content', label: 'News Feed', icon: Newspaper },
@@ -102,18 +110,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchData = async () => {
     try {
-      const [c, h, a, health, l] = await Promise.all([
+      const [c, h, a, health, l, f] = await Promise.all([
         API.contacts.getAll(), 
         API.home.getConfig(),
         API.about.getConfig(),
         API.system.getHealth(),
-        API.system.getLogs()
+        API.system.getLogs(),
+        API.footer.getConfig()
       ]);
       setContactMsgs(c);
       setHomeSetup(h);
       setAboutSetup(a);
       setDbHealth(health);
       setLogs(l);
+      setFooterSetup(f);
     } catch (e) {
       console.error("Fetch error", e);
     }
@@ -168,6 +178,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         else await API.news.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
         onUpdateNews(await API.news.getAll());
       } else if (showModal === 'ann') {
+        if (!rolePermissions.canManageBulletins) return alert("Unauthorized: Only IT can modify bulletins.");
         const item = { 
           title: formData.get('title') as string, content: formData.get('content') as string,
           status: formData.get('status') as any, color: formData.get('color') as string,
@@ -195,6 +206,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
         onUpdateLeaders(await API.leaders.getAll());
       } else if (showModal === 'member') {
+        if (!rolePermissions.canManageMembers) return alert("Unauthorized: Only IT can modify members.");
         const item = {
           fullName: formData.get('fullName') as string, email: formData.get('email') as string,
           phone: formData.get('phone') as string, program: formData.get('program') as string,
@@ -210,6 +222,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setEditingItem(null);
       setFilePreview(null);
       setUrlInput('');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleAdminUpdateSelf = async (updated: User) => {
+    setIsSyncing(true);
+    try {
+      await API.members.update(currentUser.id, updated);
+      onUpdateSelf(updated);
+      onUpdateMembers(await API.members.getAll());
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleUpdateFooterConfig = async (config: FooterConfig) => {
+    setIsSyncing(true);
+    try {
+      await API.footer.updateConfig(config);
+      onUpdateFooter(config);
+      setFooterSetup(config);
     } finally {
       setIsSyncing(false);
     }
@@ -252,12 +286,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <main className="flex-grow min-w-0">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && <OverviewTab members={members} news={news} leaders={leaders} announcements={announcements} contactMsgs={contactMsgs} depts={depts} logs={logs} />}
+              {activeTab === 'profile' && <ProfileEditorTab user={currentUser} onUpdate={handleAdminUpdateSelf} isSyncing={isSyncing} />}
               {activeTab === 'home' && <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={async (e) => { e.preventDefault(); setIsSyncing(true); await API.home.updateConfig(homeSetup!); setIsSyncing(false); }} />}
               {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (u) => { setIsSyncing(true); await API.about.updateConfig(u); fetchData(); setIsSyncing(false); }} />}
+              {activeTab === 'footer' && <FooterEditorTab config={footerSetup} onSubmit={handleUpdateFooterConfig} isSyncing={isSyncing} />}
               {activeTab === 'spiritual' && <SpiritualHubTab />}
-              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => setShowModal('member')} onEditMember={(m) => {setEditingItem(m); setShowModal('member');}} onDeleteMember={(id) => commitWipe('members', id)} onToggleAdmin={(m) => {setEditingItem(m); setShowModal('member');}} currentUser={currentUser} />}
+              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => setShowModal('member')} onEditMember={(m) => {setEditingItem(m); setShowModal('member');}} onDeleteMember={(id) => commitWipe('members', id)} onToggleAdmin={(m) => {setEditingItem(m); setShowModal('member');}} currentUser={currentUser} canManage={rolePermissions.canManageMembers} />}
               {activeTab === 'content' && <NewsFeedTab news={news} onNew={() => setShowModal('news')} onEdit={(item) => { setEditingItem(item); setShowModal('news'); }} onDelete={(id) => commitWipe('news', id)} />}
-              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => setShowModal('ann')} onEdit={(a) => {setEditingItem(a); setShowModal('ann');}} onDelete={(id) => commitWipe('announcements', id)} />}
+              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => setShowModal('ann')} onEdit={(a) => {setEditingItem(a); setShowModal('ann');}} onDelete={(id) => commitWipe('announcements', id)} canManage={rolePermissions.canManageBulletins} />}
               {activeTab === 'depts' && <MinistriesTab departments={depts} onNew={() => setShowModal('dept')} onEdit={(d) => {setEditingItem(d); setShowModal('dept');}} onDelete={(id) => commitWipe('departments', id)} />}
               {activeTab === 'leaders' && <LeadershipTab leaders={leaders} onNew={() => setShowModal('leader')} onEdit={(l) => {setEditingItem(l); setShowModal('leader');}} onDelete={(id) => commitWipe('leaders', id)} />}
               {activeTab === 'donations' && <DonationTab user={currentUser} />}

@@ -158,6 +158,39 @@ app.post('/api/spiritual/quiz-results', async (req, res) => {
   } catch (err) { res.status(400).json({ error: 'Submission failed' }); }
 });
 
+// ANNOUNCEMENT ROUTES (BULLETIN)
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const announcements = await Announcement.find().sort({ date: -1 });
+    res.json(announcements);
+  } catch (err) { res.status(500).json({ error: 'Bulletin fetch fail' }); }
+});
+
+app.post('/api/announcements', async (req, res) => {
+  try {
+    const announcement = new Announcement(req.body);
+    await announcement.save();
+    await logAction(`CMS: New Announcement Published - ${announcement.title}`);
+    res.status(201).json(announcement);
+  } catch (err) { res.status(400).json({ error: 'Publish failed' }); }
+});
+
+app.put('/api/announcements/:id', async (req, res) => {
+  try {
+    const updated = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    await logAction(`CMS: Announcement Modified - ${updated?.title}`);
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: 'Update failed' }); }
+});
+
+app.delete('/api/announcements/:id', async (req, res) => {
+  try {
+    await Announcement.findByIdAndDelete(req.params.id);
+    await logAction(`SECURITY: Announcement Purged - ${req.params.id}`);
+    res.status(204).send();
+  } catch (err) { res.status(500).json({ error: 'Purge failed' }); }
+});
+
 // CORE CMS ROUTES
 app.get('/api/members', async (req, res) => {
   try {

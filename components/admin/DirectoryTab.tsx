@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, UserPlus, Shield, Edit, Trash2, FileText, Download, Loader2 } from 'lucide-react';
+import { Search, UserPlus, Shield, Edit, Trash2, FileText, Download, Loader2, ShieldAlert } from 'lucide-react';
 import { User } from '../../types';
 
 interface DirectoryTabProps {
@@ -13,10 +13,11 @@ interface DirectoryTabProps {
   onDeleteMember: (id: string) => void;
   onToggleAdmin: (member: User) => void;
   currentUser: User;
+  canManage: boolean;
 }
 
 const DirectoryTab: React.FC<DirectoryTabProps> = ({ 
-  members, searchTerm, onSearchChange, onNewMember, onEditMember, onDeleteMember, onToggleAdmin, currentUser
+  members, searchTerm, onSearchChange, onNewMember, onEditMember, onDeleteMember, onToggleAdmin, currentUser, canManage
 }) => {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -30,7 +31,6 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
 
   const generateReport = async () => {
     setIsExporting(true);
-    // Simulate complex report generation
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const headers = ['Full Name', 'Email', 'Phone', 'Role', 'Program', 'Level', 'Diocese', 'Department', 'Joined At'];
@@ -85,9 +85,16 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
               Generate Global Report
             </button>
           )}
-          <button onClick={onNewMember} className="flex-grow lg:flex-none px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:bg-cyan-600 transition-all active:scale-95">
-            <UserPlus size={16} /> New Member
-          </button>
+          {canManage ? (
+            <button onClick={onNewMember} className="flex-grow lg:flex-none px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:bg-cyan-600 transition-all active:scale-95">
+              <UserPlus size={16} /> New Member
+            </button>
+          ) : (
+            <div className="px-6 py-4 bg-gray-100 rounded-2xl flex items-center gap-3 text-gray-400">
+               <ShieldAlert size={16} />
+               <span className="text-[9px] font-black uppercase tracking-widest">Read Only Access</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -110,7 +117,7 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
                 <th className="px-8 py-6">Identity & Email</th>
                 <th className="px-8 py-6">Academic Domain</th>
                 <th className="px-8 py-6">Clearance</th>
-                <th className="px-8 py-6 text-right">Sequence Actions</th>
+                {canManage && <th className="px-8 py-6 text-right">Sequence Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -144,18 +151,20 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
                       {m.role}
                     </span>
                   </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                      <button onClick={() => onToggleAdmin(m)} className="p-3 bg-white border border-gray-100 text-cyan-500 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm" title="Modify Clearance"><Shield size={16}/></button>
-                      <button onClick={() => onEditMember(m)} className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>
-                      <button onClick={() => onDeleteMember(m.id)} className="p-3 bg-red-50 border border-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-                    </div>
-                  </td>
+                  {canManage && (
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                        <button onClick={() => onToggleAdmin(m)} className="p-3 bg-white border border-gray-100 text-cyan-500 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm" title="Modify Clearance"><Shield size={16}/></button>
+                        <button onClick={() => onEditMember(m)} className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>
+                        <button onClick={() => onDeleteMember(m.id)} className="p-3 bg-red-50 border border-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredMembers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-8 py-32 text-center">
+                  <td colSpan={canManage ? 4 : 3} className="px-8 py-32 text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200 mb-4">
                       <Search size={32} />
                     </div>

@@ -1,7 +1,7 @@
 
 import { 
   User, NewsItem, Leader, Announcement, Department, DepartmentInterest, ContactMessage, 
-  HomeConfig, Donation, DonationProject, AboutConfig,
+  HomeConfig, Donation, DonationProject, AboutConfig, FooterConfig,
   DailyVerse, VerseReflection, BibleQuiz, QuizResult
 } from '../types';
 import { db } from './db';
@@ -144,6 +144,10 @@ export const API = {
   about: {
     getConfig: () => hybridFetch('config/about', 'GET', null, () => db.getCollection('aboutConfig')),
     updateConfig: (updates: Partial<AboutConfig>) => hybridFetch('config/about', 'PUT', updates, () => db.update('aboutConfig', null, updates))
+  },
+  footer: {
+    getConfig: () => hybridFetch('config/footer', 'GET', null, () => db.getCollection('footerConfig')),
+    updateConfig: (updates: Partial<FooterConfig>) => hybridFetch('config/footer', 'PUT', updates, () => db.update('footerConfig', null, updates))
   },
   system: {
     getHealth: () => hybridFetch('system/health', 'GET', null, async () => db.getHealth()),

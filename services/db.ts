@@ -1,7 +1,7 @@
 
 import { 
   User, NewsItem, Leader, Announcement, Department, DepartmentInterest, ContactMessage, 
-  HomeConfig, Donation, DonationProject, AboutConfig,
+  HomeConfig, Donation, DonationProject, AboutConfig, FooterConfig,
   DailyVerse, VerseReflection, BibleQuiz, QuizResult
 } from '../types';
 
@@ -20,6 +20,7 @@ interface DatabaseSchema {
   donationProjects: DonationProject[];
   homeConfig: HomeConfig;
   aboutConfig: AboutConfig;
+  footerConfig: FooterConfig;
   logs: { id: string; action: string; timestamp: string }[];
   otps: { email: string; otp: string; expires: number }[];
   verses: DailyVerse[];
@@ -140,6 +141,19 @@ const INITIAL_DATA: DatabaseSchema = {
       { id: 't1', year: '1997', title: 'The Genesis', description: 'RASA founded at UNR Butare campus.' },
     ]
   },
+  footerConfig: {
+    description: 'Showing Christ to Academicians since 1997. A vibrant sanctuary for faith, excellence, and community within the University of Rwanda.',
+    facebookUrl: 'https://facebook.com/rasa.ur.nyg',
+    twitterUrl: 'https://twitter.com/rasa_nyg',
+    instagramUrl: 'https://instagram.com/rasa_nyg',
+    linkedinUrl: 'https://linkedin.com/company/rasa-nyg',
+    youtubeUrl: 'https://youtube.com/@rasanyg',
+    whatsappUrl: 'https://wa.me/250787846433',
+    tiktokUrl: 'https://tiktok.com/@rasa_nyg',
+    address: 'UR CST Campus, Nyarugenge, Kigali',
+    phone: '+250 787 846 433',
+    email: 'connect@rasa-nyg.org'
+  },
   logs: [],
   otps: []
 };
@@ -175,7 +189,7 @@ class SimulatedDB {
   }
 
   async update<T extends keyof DatabaseSchema>(collection: T, id: string | null, updates: any) {
-    if (collection === 'homeConfig' || collection === 'aboutConfig') {
+    if (collection === 'homeConfig' || collection === 'aboutConfig' || collection === 'footerConfig') {
       (this.data as any)[collection] = { ...(this.data as any)[collection], ...updates };
     } else {
       const arr = this.data[collection] as any[];

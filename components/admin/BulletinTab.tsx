@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Megaphone, Plus, Edit, Trash2, CheckCircle, AlertTriangle, Info, Clock, Search, Power } from 'lucide-react';
+import { Bell, Megaphone, Plus, Edit, Trash2, CheckCircle, AlertTriangle, Info, Clock, Search, Power, ShieldAlert } from 'lucide-react';
 import { Announcement } from '../../types';
 
 interface BulletinTabProps {
@@ -9,9 +9,10 @@ interface BulletinTabProps {
   onNew: () => void;
   onEdit: (a: Announcement) => void;
   onDelete: (id: string) => void;
+  canManage: boolean;
 }
 
-const BulletinTab: React.FC<BulletinTabProps> = ({ announcements, onNew, onEdit, onDelete }) => {
+const BulletinTab: React.FC<BulletinTabProps> = ({ announcements, onNew, onEdit, onDelete, canManage }) => {
   const [filter, setFilter] = useState<'All' | 'Notice' | 'Urgent' | 'Info'>('All');
   const filtered = announcements.filter(a => filter === 'All' || a.status === filter);
 
@@ -26,9 +27,17 @@ const BulletinTab: React.FC<BulletinTabProps> = ({ announcements, onNew, onEdit,
           </h3>
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Campus mandates & information</p>
         </div>
-        <button onClick={onNew} className="px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-cyan-500/20 flex items-center gap-3 active:scale-95 transition-all">
-          <Plus size={18} /> New Broadcast
-        </button>
+        
+        {canManage ? (
+          <button onClick={onNew} className="px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-cyan-500/20 flex items-center gap-3 active:scale-95 transition-all">
+            <Plus size={18} /> New Broadcast
+          </button>
+        ) : (
+          <div className="px-6 py-3 bg-gray-100 rounded-2xl flex items-center gap-3 text-gray-400">
+            <ShieldAlert size={16} />
+            <span className="text-[9px] font-black uppercase tracking-widest">IT Authority Required to Publish</span>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2 p-1.5 bg-white border border-gray-100 rounded-2xl w-fit shadow-sm">
@@ -54,10 +63,13 @@ const BulletinTab: React.FC<BulletinTabProps> = ({ announcements, onNew, onEdit,
                 <h4 className="text-xl font-black text-gray-900 leading-tight">{a.title}</h4>
                 <p className="text-sm text-gray-500 line-clamp-1 font-medium">{a.content}</p>
               </div>
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => onEdit(a)} className="p-3.5 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={18}/></button>
-                <button onClick={() => onDelete(a.id)} className="p-3.5 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
-              </div>
+              
+              {canManage && (
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => onEdit(a)} className="p-3.5 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={18}/></button>
+                  <button onClick={() => onDelete(a.id)} className="p-3.5 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
+                </div>
+              )}
             </motion.div>
           );
         })}

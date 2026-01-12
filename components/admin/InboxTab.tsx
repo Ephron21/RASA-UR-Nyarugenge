@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, CheckCircle2, Trash2, Mail, 
-  User, Clock, X, Eye, Phone, MessageCircle, 
-  Send, ArrowLeft, Sparkles, Loader2, Users,
-  GraduationCap, MapPin, Tag
+  X, Eye, Phone, MessageCircle, 
+  Send, Users, GraduationCap, MapPin, Tag, 
+  Smartphone, ExternalLink, Loader2
 } from 'lucide-react';
 import { ContactMessage, DepartmentInterest } from '../../types';
 import { API } from '../../services/api';
@@ -22,8 +22,9 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
   const [interests, setInterests] = useState<DepartmentInterest[]>([]);
   const [selectedMsg, setSelectedMsg] = useState<any | null>(null);
   const [isReplying, setIsReplying] = useState(false);
+  const [replyMethod, setReplyMethod] = useState<'email' | 'phone'>('email');
   const [replyText, setReplyText] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [isTransmitting, setIsTransmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
     setIsReplying(false);
     setShowSuccess(false);
     setReplyText('');
+    setReplyMethod('email');
     if (activeInbox === 'Inquiry' && !msg.isRead) onMarkRead(msg.id);
   };
 
@@ -47,15 +49,36 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
     setSelectedMsg(null);
   };
 
-  const handleSendReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyText.trim()) return;
-    setIsSending(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSending(false);
-    setShowSuccess(true);
-    setReplyText('');
-    setTimeout(() => { setShowSuccess(false); setIsReplying(false); }, 2500);
+  const triggerCommunication = (type: 'email' | 'sms' | 'whatsapp') => {
+    setIsTransmitting(true);
+    // Sanitize inputs
+    const phone = (selectedMsg.phone || '').replace(/[^0-9+]/g, '');
+    const email = selectedMsg.email;
+    const body = encodeURIComponent(replyText);
+    const subject = encodeURIComponent(`Re: ${selectedMsg.subject || 'RASA Application inquiry'}`);
+
+    let url = '';
+    if (type === 'email') url = `mailto:${email}?subject=${subject}&body=${body}`;
+    if (type === 'sms') url = `sms:${phone}?body=${body}`;
+    if (type === 'whatsapp') url = `https://wa.me/${phone.replace('+', '')}?text=${body}`;
+
+    // Logic Fix: System protocols (mailto, sms) should use window.location.href
+    // to avoid the blank browser tab issue shown in your screenshot.
+    if (type === 'whatsapp') {
+      window.open(url, '_blank');
+    } else {
+      window.location.href = url;
+    }
+
+    setTimeout(() => {
+      setShowSuccess(true);
+      setIsTransmitting(false);
+      setTimeout(() => { 
+        setShowSuccess(false); 
+        setIsReplying(false);
+        setSelectedMsg(null);
+      }, 2000);
+    }, 500);
   };
 
   return (
@@ -126,7 +149,7 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
                         <span>{i.level}</span>
                       </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase ${i.status === 'Pending' ? 'bg-orange-100 text-orange-600' : i.status === 'Approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                    <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase ${i.status === 'Pending' ? 'bg-orange-100 text-orange-600' : i.status === 'Approved' ? 'bg-green-100 text-green-600' : i.status === 'Rejected' ? 'bg-red-100 text-red-600' : ''}`}>
                       {i.status}
                     </span>
                   </div>
@@ -158,50 +181,125 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
                </div>
                
                <div className="flex-grow overflow-y-auto scroll-hide p-12">
-                  {activeInbox === 'Recruitment' ? (
-                    <div className="space-y-10">
-                       <div className="grid grid-cols-2 gap-6">
-                          <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                             <p className="text-[9px] font-black text-gray-400 uppercase">Target Ministry</p>
-                             <p className="font-black text-cyan-600 flex items-center gap-2"><Tag size={12}/> {selectedMsg.departmentName}</p>
-                          </div>
-                          <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                             <p className="text-[9px] font-black text-gray-400 uppercase">Academic Level</p>
-                             <p className="font-black text-gray-700 flex items-center gap-2"><GraduationCap size={14}/> {selectedMsg.level}</p>
-                          </div>
-                          <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                             <p className="text-[9px] font-black text-gray-400 uppercase">Home Diocese</p>
-                             <p className="font-black text-gray-700 flex items-center gap-2"><MapPin size={12}/> {selectedMsg.diocese}</p>
-                          </div>
-                          <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
-                             <p className="text-[9px] font-black text-gray-400 uppercase">Contact</p>
-                             <p className="font-black text-gray-700 flex items-center gap-2"><Phone size={12}/> {selectedMsg.phone}</p>
-                          </div>
-                       </div>
-                       <div className="space-y-4">
-                          <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">Spiritual Motivation</p>
-                          <p className="text-lg text-gray-700 leading-relaxed font-serif italic border-l-4 border-cyan-500 pl-8">"{selectedMsg.motivation}"</p>
-                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-8">
-                       <div className="space-y-2">
-                         <p className="text-[10px] font-black uppercase text-cyan-500 tracking-[0.3em]">Subject: {selectedMsg.subject}</p>
-                         <p className="text-lg font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedMsg.message}</p>
-                       </div>
-                    </div>
-                  )}
+                  <AnimatePresence mode="wait">
+                    {isReplying ? (
+                      <motion.div key="reply" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                         <div className="space-y-4">
+                            <label className="text-[10px] font-black text-cyan-600 uppercase tracking-widest ml-2">Broadcast Channel</label>
+                            <div className="grid grid-cols-2 gap-4">
+                               <button 
+                                onClick={() => setReplyMethod('email')}
+                                className={`flex items-center justify-center gap-3 p-5 rounded-3xl border-2 transition-all font-black text-xs uppercase tracking-widest ${replyMethod === 'email' ? 'bg-cyan-50 border-cyan-500 text-cyan-700 shadow-lg shadow-cyan-100' : 'bg-white border-gray-100 text-gray-400'}`}
+                               >
+                                  <Mail size={18}/> Email
+                               </button>
+                               <button 
+                                onClick={() => setReplyMethod('phone')}
+                                className={`flex items-center justify-center gap-3 p-5 rounded-3xl border-2 transition-all font-black text-xs uppercase tracking-widest ${replyMethod === 'phone' ? 'bg-cyan-50 border-cyan-500 text-cyan-700 shadow-lg shadow-cyan-100' : 'bg-white border-gray-100 text-gray-400'}`}
+                               >
+                                  <Smartphone size={18}/> Phone (SMS/WA)
+                               </button>
+                            </div>
+                         </div>
+
+                         <div className="space-y-4">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Composition Area</label>
+                            <textarea 
+                              value={replyText}
+                              onChange={e => setReplyText(e.target.value)}
+                              rows={6}
+                              placeholder={replyMethod === 'email' ? "Draft your official email response..." : "Draft your direct mobile message..."}
+                              className="w-full p-8 bg-gray-50 border-2 border-transparent focus:border-cyan-100 focus:bg-white rounded-[2.5rem] outline-none font-medium text-base transition-all resize-none shadow-inner"
+                            />
+                         </div>
+
+                         {showSuccess && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 bg-green-50 text-green-600 rounded-3xl border border-green-100 flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest">
+                               <CheckCircle2 size={18}/> Communication Pulse Transmitted
+                            </motion.div>
+                         )}
+                      </motion.div>
+                    ) : (
+                      activeInbox === 'Recruitment' ? (
+                        <div className="space-y-10">
+                           <div className="grid grid-cols-2 gap-6">
+                              <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
+                                 <p className="text-[9px] font-black text-gray-400 uppercase">Target Ministry</p>
+                                 <p className="font-black text-cyan-600 flex items-center gap-2"><Tag size={12}/> {selectedMsg.departmentName}</p>
+                              </div>
+                              <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
+                                 <p className="text-[9px] font-black text-gray-400 uppercase">Academic Level</p>
+                                 <p className="font-black text-gray-700 flex items-center gap-2"><GraduationCap size={14}/> {selectedMsg.level}</p>
+                              </div>
+                              <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
+                                 <p className="text-[9px] font-black text-gray-400 uppercase">Home Diocese</p>
+                                 <p className="font-black text-gray-700 flex items-center gap-2"><MapPin size={12}/> {selectedMsg.diocese}</p>
+                              </div>
+                              <div className="p-6 bg-gray-50 rounded-3xl space-y-1">
+                                 <p className="text-[9px] font-black text-gray-400 uppercase">Contact</p>
+                                 <p className="font-black text-gray-700 flex items-center gap-2"><Phone size={12}/> {selectedMsg.phone}</p>
+                              </div>
+                           </div>
+                           <div className="space-y-4">
+                              <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">Spiritual Motivation</p>
+                              <p className="text-lg text-gray-700 leading-relaxed font-serif italic border-l-4 border-cyan-500 pl-8">"{selectedMsg.motivation}"</p>
+                           </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-8">
+                           <div className="space-y-2">
+                             <p className="text-[10px] font-black uppercase text-cyan-500 tracking-[0.3em]">Subject: {selectedMsg.subject}</p>
+                             <p className="text-lg font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedMsg.message}</p>
+                           </div>
+                        </div>
+                      )
+                    )}
+                  </AnimatePresence>
                </div>
 
                <div className="p-10 border-t border-gray-50 bg-gray-50/30 flex justify-between gap-4">
-                  <button onClick={() => setSelectedMsg(null)} className="px-8 py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-400">Discard</button>
-                  {activeInbox === 'Recruitment' && selectedMsg.status === 'Pending' ? (
+                  <button onClick={() => { if(isReplying) setIsReplying(false); else setSelectedMsg(null); }} className="px-8 py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-gray-400 active:scale-95 transition-all">
+                    {isReplying ? 'Back to Message' : 'Discard'}
+                  </button>
+                  
+                  {isReplying ? (
                     <div className="flex gap-3">
-                       <button onClick={() => handleStatusUpdate(selectedMsg.id, 'Rejected')} className="px-8 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest">Decline</button>
-                       <button onClick={() => handleStatusUpdate(selectedMsg.id, 'Approved')} className="px-10 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-100">Approve Steward</button>
+                       {replyMethod === 'email' ? (
+                          <button 
+                            onClick={() => triggerCommunication('email')}
+                            disabled={!replyText.trim() || isTransmitting}
+                            className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                          >
+                             {isTransmitting ? <Loader2 className="animate-spin" size={16}/> : <><Mail size={16}/> Open Email App</>}
+                          </button>
+                       ) : (
+                          <>
+                             <button 
+                              onClick={() => triggerCommunication('sms')}
+                              disabled={!replyText.trim() || isTransmitting}
+                              className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                             >
+                                {isTransmitting ? <Loader2 className="animate-spin" size={16}/> : <><Smartphone size={16}/> SMS</>}
+                             </button>
+                             <button 
+                              onClick={() => triggerCommunication('whatsapp')}
+                              disabled={!replyText.trim() || isTransmitting}
+                              className="px-10 py-4 bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-green-100 flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                             >
+                                {isTransmitting ? <Loader2 className="animate-spin" size={16}/> : <><MessageCircle size={18}/> WhatsApp</>}
+                             </button>
+                          </>
+                       )}
                     </div>
                   ) : (
-                    <button onClick={() => setIsReplying(true)} className="px-10 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">Compose Reply</button>
+                    activeInbox === 'Recruitment' && selectedMsg.status === 'Pending' ? (
+                      <div className="flex gap-3">
+                         <button onClick={() => handleStatusUpdate(selectedMsg.id, 'Rejected')} className="px-8 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">Decline</button>
+                         <button onClick={() => handleStatusUpdate(selectedMsg.id, 'Approved')} className="px-10 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-100 active:scale-95 transition-all">Approve Steward</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setIsReplying(true)} className="px-10 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-100 active:scale-95 transition-all">Initialize Reply</button>
+                    )
                   )}
                </div>
             </motion.div>

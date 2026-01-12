@@ -37,8 +37,9 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
            {/* Compact Live Pulse */}
            <motion.div 
              initial={{ opacity: 0, y: 15 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ delay: 0.2 }}
+             whileInView={{ opacity: 1, y: 0 }}
+             viewport={{ once: true }}
+             transition={{ delay: 0.2, duration: 0.8 }}
              className="px-4 py-1.5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2.5 shadow-2xl"
            >
               <div className="relative w-1.5 h-1.5">
@@ -51,39 +52,43 @@ const Hero: React.FC<HeroProps> = ({ config }) => {
            {/* Motto Badge */}
            <motion.div 
             initial={{ opacity: 0, scale: 0.95 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            transition={{ delay: 0.4 }}
+            whileInView={{ opacity: 1, scale: 1 }} 
+            viewport={{ once: true }}
+            transition={{ delay: 0.4, duration: 0.8 }}
             className="inline-flex items-center gap-2 px-5 py-2 bg-cyan-500/10 backdrop-blur-md border border-cyan-500/20 rounded-full text-cyan-400 font-black text-[10px] uppercase tracking-[0.4em]"
           >
             <Sparkles size={12} className="animate-pulse" /> {config.motto}
           </motion.div>
         </div>
 
-        {/* Scaled-down Title for Better Balance */}
+        {/* Scaled-down Title with Scroll Triggered subtle upward lift */}
         <motion.h1 
-          initial={{ y: 30, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ y: 40, opacity: 0 }} 
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.6, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
           className="text-4xl md:text-7xl lg:text-8xl font-bold text-white mb-6 font-serif italic leading-[1.05] tracking-tight"
         >
           {config.heroTitle}
         </motion.h1>
 
-        {/* Refined Subtitle sizing */}
+        {/* Refined Subtitle visibility trigger */}
         <motion.p 
-          initial={{ y: 20, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.8, duration: 1 }}
+          initial={{ y: 25, opacity: 0 }} 
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.8, duration: 1.2 }}
           className="text-base md:text-lg text-gray-300/90 mb-12 tracking-wide font-light max-w-2xl mx-auto leading-relaxed px-4"
         >
           {config.heroSubtitle}
         </motion.p>
 
-        {/* Interactive Call to Action */}
+        {/* Interactive Call to Action entrance */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }} 
-          transition={{ delay: 1 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 1, duration: 0.8 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <Link 

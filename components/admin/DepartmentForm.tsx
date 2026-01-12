@@ -1,6 +1,10 @@
 
-import React, { useRef, useState } from 'react';
-import { Briefcase, Activity, Star, Info, X, Zap, Camera, Upload, Layers, Smile } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { 
+  Briefcase, Activity, Star, Info, X, Zap, 
+  Camera, Upload, Layers, Smile, Flame, 
+  Music, Globe, Heart, Shield, Handshake, Mic 
+} from 'lucide-react';
 import { Department } from '../../types';
 
 interface DepartmentFormProps {
@@ -11,6 +15,23 @@ interface DepartmentFormProps {
   onUrlChange: (url: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
+
+const IconMap: Record<string, any> = { 
+  Flame, Music, Globe, Activity, Shield, Heart, Mic, Handshake, Zap 
+};
+
+const SmartIcon: React.FC<{ icon: string; size?: number; className?: string }> = ({ icon, size = 24, className = "" }) => {
+  if (!icon) return <Info size={size} className={className} />;
+  
+  // Check if it's a base64 image or URL
+  if (icon.startsWith('data:') || icon.startsWith('http') || icon.startsWith('/')) {
+    return <img src={icon} alt="Icon" className={`object-contain ${className}`} style={{ width: size, height: size }} />;
+  }
+
+  // Fallback to Lucide Component
+  const LucideIcon = IconMap[icon] || Info;
+  return <LucideIcon size={size} className={className} />;
+};
 
 const DepartmentForm: React.FC<DepartmentFormProps> = ({ 
   editingItem, 
@@ -64,30 +85,26 @@ const DepartmentForm: React.FC<DepartmentFormProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {/* 2. Custom Icon Upload */}
+        {/* 2. Custom Icon Upload / Selection */}
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-widest">
-            <Smile size={14} className="text-cyan-500" /> Custom Ministerial Icon
+            <Smile size={14} className="text-cyan-500" /> Current Ministerial Icon
           </label>
           <div className="flex items-center gap-6">
             <div 
               onClick={() => iconInputRef.current?.click()}
-              className="w-24 h-24 bg-cyan-50 rounded-3xl border-2 border-dashed border-cyan-100 flex items-center justify-center cursor-pointer hover:bg-white hover:border-cyan-400 transition-all group overflow-hidden"
+              className="w-24 h-24 bg-cyan-50 rounded-3xl border-2 border-dashed border-cyan-100 flex items-center justify-center cursor-pointer hover:bg-white hover:border-cyan-400 transition-all group overflow-hidden p-4 shadow-sm"
             >
-              {iconPreview || (editingItem?.icon && editingItem.icon.startsWith('data:')) ? (
-                <img src={currentIcon} className="w-full h-full object-contain p-2" alt="Icon" />
-              ) : (
-                <Upload size={24} className="text-cyan-300 group-hover:text-cyan-500" />
-              )}
+              <SmartIcon icon={currentIcon} size={40} className="text-cyan-600 transition-transform group-hover:scale-110" />
             </div>
             <div className="flex-grow space-y-2">
-              <p className="text-[10px] font-bold text-gray-400 leading-tight">Upload a unique symbol for this ministry. High-contrast PNGs with transparency work best.</p>
+              <p className="text-[10px] font-bold text-gray-400 leading-tight">Upload a unique symbol or select a preset below. High-contrast PNGs with transparency work best.</p>
               <button 
                 type="button" 
                 onClick={() => iconInputRef.current?.click()}
-                className="text-[10px] font-black text-cyan-600 uppercase tracking-widest hover:text-cyan-700"
+                className="text-[10px] font-black text-cyan-600 uppercase tracking-widest hover:text-cyan-700 flex items-center gap-1"
               >
-                Choose File
+                <Upload size={12} /> Custom Upload
               </button>
             </div>
           </div>
@@ -100,21 +117,27 @@ const DepartmentForm: React.FC<DepartmentFormProps> = ({
           <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 ml-4 tracking-widest">
             <Layers size={14} className="text-cyan-500" /> Preset Library
           </label>
-          <select 
-            onChange={(e) => setIconPreview(e.target.value)}
-            defaultValue={editingItem?.icon && !editingItem.icon.startsWith('data:') ? editingItem.icon : ''}
-            className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all"
-          >
-            <option value="">-- Use Uploaded Custom Icon --</option>
-            <option value="Flame">Flame (Spiritual/Revival)</option>
-            <option value="Music">Music (Worship/Choir)</option>
-            <option value="Globe">Globe (Evangelism/Mission)</option>
-            <option value="Heart">Heart (Social/Intercession)</option>
-            <option value="Shield">Shield (Protocol/Security)</option>
-            <option value="Activity">Activity (Media/Broadcasting)</option>
-            <option value="Zap">Zap (Sports/Fitness)</option>
-            <option value="Handshake">Handshake (Social Affairs)</option>
-          </select>
+          <div className="relative">
+            <select 
+              onChange={(e) => setIconPreview(e.target.value)}
+              value={(!currentIcon.startsWith('data:') && !currentIcon.startsWith('http')) ? currentIcon : ""}
+              className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-[1.8rem] font-bold text-sm focus:bg-white outline-none cursor-pointer appearance-none transition-all shadow-inner"
+            >
+              <option value="" disabled>-- Custom Upload Active --</option>
+              <option value="Flame">Flame (Spiritual/Revival)</option>
+              <option value="Music">Music (Worship/Choir)</option>
+              <option value="Globe">Globe (Evangelism/Mission)</option>
+              <option value="Heart">Heart (Social/Intercession)</option>
+              <option value="Shield">Shield (Protocol/Security)</option>
+              <option value="Activity">Activity (Media/Broadcasting)</option>
+              <option value="Zap">Zap (Sports/Fitness)</option>
+              <option value="Handshake">Handshake (Social Affairs)</option>
+              <option value="Mic">Mic (Podcast/Broadcast)</option>
+            </select>
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+               <Layers size={16} />
+            </div>
+          </div>
         </div>
       </div>
 
