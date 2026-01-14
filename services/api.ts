@@ -24,20 +24,19 @@ const hybridFetch = async (
     const res = await fetch(`${API_BASE_URL}/${endpoint}`, options);
     
     if (!res.ok) {
-      if (fallbackAction) {
-        console.warn(`[RASA API] Server Response Error (${res.status}) for ${endpoint}. Failover to LocalStorage.`);
+      // ONLY use fallback for GET requests (reading data)
+      if (method === 'GET' && fallbackAction) {
+        console.warn(`[RASA API] Server Error (${res.status}) for ${endpoint}. Fallback to LocalDB.`);
         return await fallbackAction();
       }
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || `Kernel Error: ${res.status}`);
     }
     
-    const data = await res.json();
-    console.log(`%c[RASA KERNEL] SYNCHRONIZED: ${endpoint}`, "color: #06b6d4; font-weight: bold; background: #ecfeff; padding: 2px 5px; border-radius: 4px;");
-    return data;
+    return await res.json();
   } catch (err: any) {
-    if (fallbackAction) {
-      console.warn(`[RASA API] Kernel Offline (${API_BASE_URL}). Using browser persistence layer.`);
+    if (method === 'GET' && fallbackAction) {
+      console.warn(`[RASA API] Kernel Offline. Using browser persistence layer.`);
       return await fallbackAction();
     }
     throw err;
@@ -47,21 +46,16 @@ const hybridFetch = async (
 export const API = {
   members: {
     getAll: () => hybridFetch('members', 'GET', null, () => db.getCollection('members')),
-    create: (item: User) => hybridFetch('members', 'POST', item, () => db.insert('members', item)),
-    update: (id: string, updates: Partial<User>) => hybridFetch(`members/${id}`, 'PUT', updates, () => db.update('members', id, updates)),
-    delete: (id: string) => hybridFetch(`members/${id}`, 'DELETE', null, () => db.delete('members', id)),
-    updateRole: (id: string, role: string) => hybridFetch(`members/${id}/role`, 'PATCH', { role }, () => db.update('members', id, { role }))
+    create: (item: User) => hybridFetch('members', 'POST', item),
+    update: (id: string, updates: Partial<User>) => hybridFetch(`members/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`members/${id}`, 'DELETE'),
+    updateRole: (id: string, role: string) => hybridFetch(`members/${id}/role`, 'PATCH', { role })
   },
   roles: {
     getAll: () => hybridFetch('roles', 'GET', null, () => db.getCollection('roles')),
-    create: (item: RoleDefinition) => hybridFetch('roles', 'POST', item, () => db.insert('roles', item)),
-    update: (id: string, updates: Partial<RoleDefinition>) => hybridFetch(`roles/${id}`, 'PUT', updates, () => db.update('roles', id, updates)),
-    delete: (id: string) => hybridFetch(`roles/${id}`, 'DELETE', null, () => db.delete('roles', id))
-  },
-  auth: {
-    requestOTP: (email: string) => hybridFetch('auth/otp', 'POST', { email }, () => db.generateOTP(email)),
-    verifyOTP: (email: string, otp: string) => hybridFetch('auth/verify', 'POST', { email, otp }, () => db.verifyOTP(email, otp)),
-    resetPassword: (email: string, pass: string) => hybridFetch('auth/reset', 'POST', { email, newPassword: pass }, () => db.update('members', null, { email, password: pass }))
+    create: (item: RoleDefinition) => hybridFetch('roles', 'POST', item),
+    update: (id: string, updates: Partial<RoleDefinition>) => hybridFetch(`roles/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`roles/${id}`, 'DELETE')
   },
   spiritual: {
     verses: {
@@ -70,12 +64,11 @@ export const API = {
         return vs.find(v => v.isActive) || null;
       }),
       getAll: () => hybridFetch('spiritual/verses', 'GET', null, () => db.getCollection('verses')),
-      create: (v: DailyVerse) => hybridFetch('spiritual/verses', 'POST', v, () => db.insert('verses', v)),
-      update: (id: string, updates: any) => hybridFetch(`spiritual/verses/${id}`, 'PUT', updates, () => db.update('verses', id, updates)),
-      delete: (id: string) => hybridFetch(`spiritual/verses/${id}`, 'DELETE', null, () => db.delete('verses', id)),
-      addReflection: (r: VerseReflection) => hybridFetch('spiritual/reflections', 'POST', r, () => db.insert('reflections', r)),
+      create: (v: DailyVerse) => hybridFetch('spiritual/verses', 'POST', v),
+      update: (id: string, updates: any) => hybridFetch(`spiritual/verses/${id}`, 'PUT', updates),
+      delete: (id: string) => hybridFetch(`spiritual/verses/${id}`, 'DELETE'),
+      addReflection: (r: VerseReflection) => hybridFetch('spiritual/reflections', 'POST', r),
       getReflections: () => hybridFetch('spiritual/reflections', 'GET', null, () => db.getCollection('reflections')),
-      deleteReflection: (id: string) => hybridFetch(`spiritual/reflections/${id}`, 'DELETE', null, () => db.delete('reflections', id))
     },
     quizzes: {
       getAll: () => hybridFetch('spiritual/quizzes', 'GET', null, () => db.getCollection('quizzes')),
@@ -83,84 +76,75 @@ export const API = {
         const qz = await db.getCollection('quizzes');
         return qz.filter(q => q.isActive);
       }),
-      create: (q: BibleQuiz) => hybridFetch('spiritual/quizzes', 'POST', q, () => db.insert('quizzes', q)),
-      update: (id: string, updates: any) => hybridFetch(`spiritual/quizzes/${id}`, 'PUT', updates, () => db.update('quizzes', id, updates)),
-      delete: (id: string) => hybridFetch(`spiritual/quizzes/${id}`, 'DELETE', null, () => db.delete('quizzes', id)),
-      submitResult: (r: QuizResult) => hybridFetch('spiritual/quiz-results', 'POST', r, async () => {
-        const res = await db.insert('quizResults', r);
-        const points = Math.floor((r.score / r.total) * 100);
-        await db.update('members', r.userId, { spiritPoints: (points || 0) });
-        return res;
-      }),
+      create: (q: BibleQuiz) => hybridFetch('spiritual/quizzes', 'POST', q),
+      submitResult: (r: QuizResult) => hybridFetch('spiritual/quiz-results', 'POST', r),
       getResults: () => hybridFetch('spiritual/quiz-results', 'GET', null, () => db.getCollection('quizResults')),
-      deleteResult: (id: string) => hybridFetch(`spiritual/quiz-results/${id}`, 'DELETE', null, () => db.delete('quizResults', id))
     }
   },
   news: {
     getAll: () => hybridFetch('news', 'GET', null, () => db.getCollection('news')),
-    create: (item: NewsItem) => hybridFetch('news', 'POST', item, () => db.insert('news', item)),
-    update: (id: string, updates: Partial<NewsItem>) => hybridFetch(`news/${id}`, 'PUT', updates, () => db.update('news', id, updates)),
-    delete: (id: string) => hybridFetch(`news/${id}`, 'DELETE', null, () => db.delete('news', id))
+    create: (item: NewsItem) => hybridFetch('news', 'POST', item),
+    update: (id: string, updates: Partial<NewsItem>) => hybridFetch(`news/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`news/${id}`, 'DELETE')
   },
   leaders: {
     getAll: () => hybridFetch('leaders', 'GET', null, () => db.getCollection('leaders')),
-    create: (item: Leader) => hybridFetch('leaders', 'POST', item, () => db.insert('leaders', item)),
-    update: (id: string, updates: Partial<Leader>) => hybridFetch(`leaders/${id}`, 'PUT', updates, () => db.update('leaders', id, updates)),
-    delete: (id: string) => hybridFetch(`leaders/${id}`, 'DELETE', null, () => db.delete('leaders', id))
+    create: (item: Leader) => hybridFetch('leaders', 'POST', item),
+    update: (id: string, updates: Partial<Leader>) => hybridFetch(`leaders/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`leaders/${id}`, 'DELETE')
   },
   announcements: {
     getAll: () => hybridFetch('announcements', 'GET', null, () => db.getCollection('announcements')),
-    create: (item: Announcement) => hybridFetch('announcements', 'POST', item, () => db.insert('announcements', item)),
-    update: (id: string, updates: Partial<Announcement>) => hybridFetch(`announcements/${id}`, 'PUT', updates, () => db.update('announcements', id, updates)),
-    delete: (id: string) => hybridFetch(`announcements/${id}`, 'DELETE', null, () => db.delete('announcements', id))
+    create: (item: Announcement) => hybridFetch('announcements', 'POST', item),
+    update: (id: string, updates: Partial<Announcement>) => hybridFetch(`announcements/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`announcements/${id}`, 'DELETE')
   },
   departments: {
     getAll: () => hybridFetch('departments', 'GET', null, () => db.getCollection('departments')),
-    create: (item: Department) => hybridFetch('departments', 'POST', item, () => db.insert('departments', item)),
-    update: (id: string, updates: Partial<Department>) => hybridFetch(`departments/${id}`, 'PUT', updates, () => db.update('departments', id, updates)),
-    delete: (id: string) => hybridFetch(`departments/${id}`, 'DELETE', null, () => db.delete('departments', id)),
-    submitInterest: (item: DepartmentInterest) => hybridFetch('departments/interest', 'POST', item, () => db.insert('interests', item)),
+    create: (item: Department) => hybridFetch('departments', 'POST', item),
+    update: (id: string, updates: Partial<Department>) => hybridFetch(`departments/${id}`, 'PUT', updates),
+    delete: (id: string) => hybridFetch(`departments/${id}`, 'DELETE'),
+    submitInterest: (item: DepartmentInterest) => hybridFetch('departments/interest', 'POST', item),
     getInterests: () => hybridFetch('departments/interests', 'GET', null, () => db.getCollection('interests')),
-    updateInterestStatus: (id: string, status: string) => hybridFetch(`departments/interests/${id}/status`, 'PATCH', { status }, () => db.update('interests', id, { status })),
-    deleteInterest: (id: string) => hybridFetch(`departments/interests/${id}`, 'DELETE', null, () => db.delete('interests', id))
+    updateInterestStatus: (id: string, status: string) => hybridFetch(`departments/interests/${id}/status`, 'PATCH', { status })
   },
   donations: {
     getAll: () => hybridFetch('donations', 'GET', null, () => db.getCollection('donations')),
-    create: (item: Donation) => hybridFetch('donations', 'POST', item, () => db.insert('donations', item)),
-    updateStatus: (id: string, status: string) => hybridFetch(`donations/${id}/status`, 'PATCH', { status }, () => db.update('donations', id, { status })),
-    delete: (id: string) => hybridFetch(`donations/${id}`, 'DELETE', null, () => db.delete('donations', id)),
+    create: (item: Donation) => hybridFetch('donations', 'POST', item),
+    updateStatus: (id: string, status: string) => hybridFetch(`donations/${id}/status`, 'PATCH', { status }),
+    delete: (id: string) => hybridFetch(`donations/${id}`, 'DELETE'),
     projects: {
       getAll: () => hybridFetch('donation-projects', 'GET', null, () => db.getCollection('donationProjects')),
-      create: (item: DonationProject) => hybridFetch('donation-projects', 'POST', item, () => db.insert('donationProjects', item)),
-      update: (id: string, updates: Partial<DonationProject>) => hybridFetch(`donation-projects/${id}`, 'PUT', updates, () => db.update('donationProjects', id, updates)),
-      delete: (id: string) => hybridFetch(`donation-projects/${id}`, 'DELETE', null, () => db.delete('donationProjects', id))
+      create: (item: DonationProject) => hybridFetch('donation-projects', 'POST', item),
+      update: (id: string, updates: Partial<DonationProject>) => hybridFetch(`donation-projects/${id}`, 'PUT', updates),
+      delete: (id: string) => hybridFetch(`donation-projects/${id}`, 'DELETE')
     }
   },
   contacts: {
     getAll: () => hybridFetch('contacts', 'GET', null, () => db.getCollection('contacts')),
-    create: (msg: any) => hybridFetch('contacts', 'POST', msg, () => db.insert('contacts', { ...msg, id: Date.now().toString(), date: new Date().toISOString(), isRead: false })),
-    markRead: (id: string) => hybridFetch(`contacts/${id}/read`, 'PATCH', null, () => db.update('contacts', id, { isRead: true })),
-    markAllRead: () => hybridFetch(`contacts/read-all`, 'PATCH', null, () => db.markAllRead()),
-    delete: (id: string) => hybridFetch(`contacts/${id}`, 'DELETE', null, () => db.delete('contacts', id))
+    create: (msg: any) => hybridFetch('contacts', 'POST', msg),
+    markRead: (id: string) => hybridFetch(`contacts/${id}/read`, 'PATCH'),
+    markAllRead: () => hybridFetch(`contacts/read-all`, 'PATCH'),
+    delete: (id: string) => hybridFetch(`contacts/${id}`, 'DELETE')
   },
   home: {
     getConfig: () => hybridFetch('config/home', 'GET', null, () => db.getCollection('homeConfig')),
-    updateConfig: (updates: Partial<HomeConfig>) => hybridFetch('config/home', 'PUT', updates, () => db.update('homeConfig', null, updates))
+    updateConfig: (updates: Partial<HomeConfig>) => hybridFetch('config/home', 'PUT', updates)
   },
   about: {
     getConfig: () => hybridFetch('config/about', 'GET', null, () => db.getCollection('aboutConfig')),
-    updateConfig: (updates: Partial<AboutConfig>) => hybridFetch('config/about', 'PUT', updates, () => db.update('aboutConfig', null, updates))
+    updateConfig: (updates: Partial<AboutConfig>) => hybridFetch('config/about', 'PUT', updates)
   },
   footer: {
     getConfig: () => hybridFetch('config/footer', 'GET', null, () => db.getCollection('footerConfig')),
-    updateConfig: (updates: Partial<FooterConfig>) => hybridFetch('config/footer', 'PUT', updates, () => db.update('footerConfig', null, updates))
+    updateConfig: (updates: Partial<FooterConfig>) => hybridFetch('config/footer', 'PUT', updates)
   },
   system: {
     getHealth: () => hybridFetch('system/health', 'GET', null, async () => db.getHealth()),
     getLogs: () => hybridFetch('system/logs', 'GET', null, () => db.getCollection('logs')),
     getBackups: () => hybridFetch('system/backups', 'GET', null, () => db.getBackups()),
-    createBackup: (desc: string) => hybridFetch('system/backups', 'POST', { description: desc }, () => db.createBackup(desc)),
-    restoreBackup: (id: string) => hybridFetch(`system/backups/${id}/restore`, 'POST', null, () => db.restoreFromBackup(id)),
-    resetDB: () => hybridFetch('system/reset', 'POST', null, async () => { db.reset(); return true; })
+    createBackup: (desc: string) => hybridFetch('system/backups', 'POST', { description: desc }),
+    restoreBackup: (id: string) => hybridFetch(`system/backups/${id}/restore`, 'POST'),
+    resetDB: () => hybridFetch('system/reset', 'POST')
   }
 };

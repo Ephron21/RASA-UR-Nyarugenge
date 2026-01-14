@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { UserCheck, Star, Shield, Plus, Edit, Trash2, Phone, Calendar, Mail, Search, Award } from 'lucide-react';
+import { UserCheck, Star, Shield, Plus, Edit, Trash2, Phone, Calendar } from 'lucide-react';
 import { Leader } from '../../types';
 
 interface LeadershipTabProps {
@@ -28,8 +28,8 @@ const LeadershipTab: React.FC<LeadershipTabProps> = ({ leaders, onNew, onEdit, o
         </button>
       </div>
 
-      {committees.map(comm => (
-        <div key={comm} className="space-y-8">
+      {committees.map((comm, commIdx) => (
+        <div key={`committee-${comm}-${commIdx}`} className="space-y-8">
           <div className="flex items-center gap-4">
              <div className="h-px flex-grow bg-gray-100"></div>
              <div className="flex items-center gap-3 px-6 py-2 bg-white border border-gray-100 rounded-2xl shadow-sm">
@@ -40,8 +40,8 @@ const LeadershipTab: React.FC<LeadershipTabProps> = ({ leaders, onNew, onEdit, o
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-             {leaders.filter(l => l.type === comm).map(leader => (
-               <motion.div key={leader.id} whileHover={{ y: -5 }} className="bg-white p-7 rounded-[3rem] border border-gray-100 shadow-sm relative group">
+             {leaders.filter(l => l.type === comm).map((leader, i) => (
+               <motion.div key={`leader-${leader.id || leader.name || i}`} whileHover={{ y: -5 }} className="bg-white p-7 rounded-[3rem] border border-gray-100 shadow-sm relative group">
                   <div className="absolute top-6 right-6 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
                     <button onClick={() => onEdit(leader)} className="p-2.5 bg-white border border-gray-100 text-gray-400 rounded-xl hover:text-cyan-600 shadow-xl"><Edit size={16}/></button>
                     <button onClick={() => onDelete(leader.id)} className="p-2.5 bg-white border border-gray-100 text-red-500 rounded-xl hover:bg-red-500 hover:text-white shadow-xl"><Trash2 size={16}/></button>

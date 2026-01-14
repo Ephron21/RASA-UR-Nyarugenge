@@ -44,7 +44,7 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
     { icon: MessageCircle, href: config.whatsappUrl, label: 'WhatsApp' },
     { icon: Music, href: config.tiktokUrl, label: 'TikTok' },
     { icon: Linkedin, href: config.linkedinUrl, label: 'LinkedIn' },
-  ].filter(link => link.href && link.href.length >= 1) : []; // Fix: Allow length 1 to show icons with '#' placeholder
+  ].filter(link => link.href && link.href.length >= 1) : [];
 
   const contactBio = config?.description || 'Showing Christ to Academicians since 1997. A vibrant sanctuary for faith, excellence, and community within the University of Rwanda.';
   const contactAddress = config?.address || 'UR CST Campus, Nyarugenge, Kigali';
@@ -78,7 +78,7 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
             <div className="flex flex-wrap gap-4">
               {socialLinks.map((social, i) => (
                 <motion.a 
-                  key={i}
+                  key={`social-${social.label}-${i}`}
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -98,8 +98,8 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
               <Sparkles size={14} /> Ministries
             </h4>
             <ul className="space-y-4">
-              {footerMinistries.map((dept) => (
-                <li key={dept.id}>
+              {footerMinistries.map((dept, i) => (
+                <li key={`footer-dept-${dept.id || i}`}>
                   <Link 
                     to={`/departments/${dept.id}`}
                     className="text-gray-400 hover:text-white flex items-center gap-2 group transition-colors text-sm font-bold"
@@ -129,8 +129,8 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
                 { name: 'Bulletins', href: '/announcements' },
                 { name: 'Support Us', href: '/donations' },
                 { name: 'Member Portal', href: '/portal' },
-              ].map((link) => (
-                <li key={link.name}>
+              ].map((link, i) => (
+                <li key={`nav-${link.name}-${i}`}>
                   <Link 
                     to={link.href}
                     className="text-gray-400 hover:text-white transition-colors text-sm font-bold flex items-center gap-2 group"
@@ -157,6 +157,7 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
                 <AnimatePresence mode="wait">
                   {isSubscribed ? (
                     <motion.div 
+                      key="success"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-2xl flex items-center gap-3 text-xs font-black uppercase tracking-widest"
@@ -165,7 +166,7 @@ const Footer: React.FC<FooterProps> = ({ departments, config }) => {
                     </motion.div>
                   ) : (
                     <motion.div 
-                      key="input"
+                      key="input-container"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex gap-3"

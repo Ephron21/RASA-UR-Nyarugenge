@@ -33,6 +33,10 @@ const About: React.FC = () => {
     );
   }
 
+  const heroTitle = config.heroTitle || 'Our Genesis';
+  const heroFirstWord = heroTitle.split(' ')[0];
+  const heroRest = heroTitle.split(' ').slice(1).join(' ');
+
   return (
     <div className="min-h-screen pb-32 bg-white">
       {/* Hero Section */}
@@ -43,7 +47,7 @@ const About: React.FC = () => {
           transition={{ duration: 2 }}
           className="absolute inset-0"
         >
-          <img src={config.heroImage} className="w-full h-full object-cover" alt="Genesis" />
+          <img src={config.heroImage || 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000'} className="w-full h-full object-cover" alt="Genesis" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black"></div>
         </motion.div>
         
@@ -52,7 +56,7 @@ const About: React.FC = () => {
             <Sparkles size={14} /> Our History
           </motion.div>
           <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-6xl md:text-9xl font-bold font-serif italic text-white leading-tight tracking-tight">
-            {config.heroTitle.split(' ')[0]} <span className="text-cyan-500">{config.heroTitle.split(' ').slice(1).join(' ')}</span>
+            {heroFirstWord} <span className="text-cyan-500">{heroRest}</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
             {config.heroSubtitle}
@@ -79,7 +83,7 @@ const About: React.FC = () => {
             <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative">
               <div className="absolute -inset-10 bg-cyan-50 rounded-[5rem] blur-3xl opacity-50 -z-10 animate-pulse"></div>
               <div className="rounded-[4rem] overflow-hidden shadow-3xl border-8 border-white aspect-[4/5]">
-                <img src={config.historyImage} className="w-full h-full object-cover" alt="History" />
+                <img src={config.historyImage || 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000'} className="w-full h-full object-cover" alt="History" />
               </div>
             </motion.div>
           </div>
@@ -94,7 +98,7 @@ const About: React.FC = () => {
               { title: config.visionTitle, content: config.visionContent, icon: Target, color: 'bg-cyan-500' },
               { title: config.missionTitle, content: config.missionContent, icon: Sparkles, color: 'bg-gray-900' }
             ].map((box, i) => (
-              <motion.div key={i} whileHover={{ y: -10 }} className="bg-white p-12 md:p-20 rounded-[4rem] shadow-xl border border-gray-100 flex flex-col items-center text-center space-y-8">
+              <motion.div key={`vm-${i}`} whileHover={{ y: -10 }} className="bg-white p-12 md:p-20 rounded-[4rem] shadow-xl border border-gray-100 flex flex-col items-center text-center space-y-8">
                 <div className={`w-20 h-20 ${box.color} text-white rounded-3xl flex items-center justify-center shadow-2xl`}><box.icon size={32}/></div>
                 <h3 className="text-4xl font-black font-serif italic text-gray-900">{box.title}</h3>
                 <p className="text-xl text-gray-500 leading-relaxed font-light">{box.content}</p>
@@ -112,10 +116,10 @@ const About: React.FC = () => {
             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Values that anchor our fellowship</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {config.values.map((v, i) => {
+            {(config.values || []).map((v, i) => {
               const Icon = IconMap[v.icon] || ShieldCheck;
               return (
-                <motion.div key={v.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="group p-12 bg-white rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all text-center space-y-6">
+                <motion.div key={v.id || `val-${i}`} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="group p-12 bg-white rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all text-center space-y-6">
                   <div className="w-16 h-16 bg-cyan-50 text-cyan-500 rounded-2xl flex items-center justify-center mx-auto group-hover:bg-cyan-500 group-hover:text-white transition-all"><Icon size={28}/></div>
                   <h4 className="text-2xl font-black text-gray-900 tracking-tight">{v.title}</h4>
                   <p className="text-gray-500 leading-relaxed font-medium">{v.description}</p>
@@ -137,8 +141,8 @@ const About: React.FC = () => {
           
           <div className="relative space-y-20">
             <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10 -translate-x-1/2 hidden md:block"></div>
-            {config.timeline.map((item, i) => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className={`flex flex-col md:flex-row items-center gap-12 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}>
+            {(config.timeline || []).map((item, i) => (
+              <motion.div key={item.id || `time-${i}`} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} className={`flex flex-col md:flex-row items-center gap-12 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}>
                 <div className="flex-1 text-center md:text-right space-y-4">
                   <div className={`space-y-2 ${i % 2 !== 0 ? 'md:text-left' : 'md:text-right'}`}>
                     <span className="text-4xl font-black text-cyan-400">{item.year}</span>

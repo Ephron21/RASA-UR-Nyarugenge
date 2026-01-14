@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Sparkles, Flame, Music, Globe, Heart, Shield, Activity, Handshake, Mic, Info, Zap } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Flame, Music, Globe, Heart, Shield, Activity, Handshake, Mic, Info, Zap } from 'lucide-react';
 import { Department } from '../../types';
 
 interface MinistriesTabProps {
@@ -33,14 +33,14 @@ const MinistriesTab: React.FC<MinistriesTabProps> = ({ departments, onNew, onEdi
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Functional departments & spiritual units</p>
         </div>
         <button onClick={onNew} className="px-10 py-5 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(6,182,212,0.2)] flex items-center gap-3 active:scale-95 transition-all">
-          <Plus size={20} /> Publish New Story
+          <Plus size={20} /> Initialize Ministry
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
-        {departments.map((dept, i) => (
+        {(departments || []).map((dept, i) => (
           <motion.div 
-            key={dept.id} 
+            key={`dept-card-${dept.id || i}`} 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -99,7 +99,7 @@ const MinistriesTab: React.FC<MinistriesTabProps> = ({ departments, onNew, onEdi
         ))}
       </div>
 
-      {departments.length === 0 && (
+      {(!departments || departments.length === 0) && (
         <div className="py-40 text-center space-y-8 bg-white rounded-[4rem] border-2 border-dashed border-gray-100">
            <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200">
              <Plus size={48} />

@@ -1,14 +1,11 @@
-
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import swaggerJsdoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
 import { 
   News, Leader, Announcement, Member, 
   Department, ContactMessage, DepartmentInterest,
   HomeConfig, SystemLog, DailyVerse, BibleQuiz, QuizResult, AboutConfig, FooterConfig,
-  Donation, DonationProject
+  VerseReflection, Donation, DonationProject
 } from './models';
 
 const app = express();
@@ -17,183 +14,121 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// --- SWAGGER CONFIGURATION ---
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'RASA UR-Nyarugenge API Nexus',
-      version: '2.5.0',
-      description: 'Divine Kernel API for the Rwanda Anglican Students Association. Handles membership, spiritual manna, and financial stewardship.',
-      contact: { name: 'Esron Tuyishime', email: 'ephrontuyishime21@gmail.com' },
-    },
-    servers: [{ url: `http://localhost:${PORT}/api` }],
-    components: {
-      securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
-      }
-    }
-  },
-  apis: ['./server.ts'], // Path to the API docs
-};
-
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-// --- DATABASE CONNECTION ---
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rasa_portal';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ KERNEL ONLINE: LOCAL MONGODB CONNECTED'))
-  .catch(err => console.error('❌ KERNEL OFFLINE: CONNECTION ERROR:', err));
+// --- LOGGING MIDDLEWARE ---
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 const logAction = async (action: string) => {
   try { await new SystemLog({ action }).save(); } catch (e) { console.error("Log failed", e); }
 };
 
-/**
- * @swagger
- * /news:
- *   get:
- *     summary: Retrieve all spirit feed stories
- *     responses:
- *       200:
- *         description: A list of news items
- */
-app.get('/api/news', async (req, res) => res.json(await News.find().sort({ date: -1 })));
-
-app.post('/api/news', async (req, res) => {
-  const n = new News(req.body);
-  await n.save();
-  await logAction(`CMS: News Story Published - ${n.title}`);
-  res.status(201).json(n);
-});
-
-/**
- * @swagger
- * /announcements:
- *   get:
- *     summary: Retrieve bulletin board announcements
- *   post:
- *     summary: Broadcast a new bulletin
- */
-app.get('/api/announcements', async (req, res) => res.json(await Announcement.find().sort({ date: -1 })));
-app.post('/api/announcements', async (req, res) => {
-  const ann = new Announcement(req.body);
-  await ann.save();
-  await logAction(`CMS: Bulletin Broadcasted - ${ann.title}`);
-  res.status(201).json(ann);
-});
-
-// --- SPIRITUAL HUB ---
-/**
- * @swagger
- * /spiritual/verses/daily:
- *   get:
- *     summary: Get today's daily manna
- */
-app.get('/api/spiritual/verses/daily', async (req, res) => {
-  const v = await DailyVerse.findOne({ isActive: true }).sort({ date: -1 });
-  res.json(v);
-});
-
-app.get('/api/spiritual/quizzes/active', async (req, res) => res.json(await BibleQuiz.find({ isActive: true })));
-
-// --- DEPARTMENTS & RECRUITMENT ---
-app.get('/api/departments', async (req, res) => res.json(await Department.find()));
-app.post('/api/departments/interest', async (req, res) => {
-  const interest = new DepartmentInterest(req.body);
-  await interest.save();
-  await logAction(`RECRUIT: Application received for ${interest.departmentName} from ${interest.fullName}`);
-  res.status(201).json(interest);
-});
-
-// --- DONATIONS & FINANCIAL LEDGER ---
-/**
- * @swagger
- * /donations:
- *   get:
- *     summary: Retrieve full financial flow
- *   post:
- *     summary: Pledge a new offering
- */
-app.get('/api/donations', async (req, res) => res.json(await Donation.find().sort({ date: -1 })));
-
-app.post('/api/donations', async (req, res) => {
-  const d = new Donation(req.body);
-  await d.save();
-  await logAction(`FINANCE: Offering Pledged - ${d.donorName} (${d.amount} RWF)`);
-  res.status(201).json(d);
-});
-
-/**
- * @swagger
- * /donations/{id}/status:
- *   patch:
- *     summary: Finalize a financial pulse (Accountant Only)
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [Completed, Pending, Failed]
- */
-app.patch('/api/donations/:id/status', async (req, res) => {
-  const { status } = req.body;
-  const d = await Donation.findByIdAndUpdate(req.params.id, { status }, { new: true });
-  
-  if (status === 'Completed' && d && d.project) {
-    // Atomic increment of project raised amount
-    await DonationProject.findOneAndUpdate(
-      { title: d.project },
-      { $inc: { raised: d.amount } }
-    );
+// --- BOOTSTRAP SYSTEM ADMIN ---
+const bootstrapAdmin = async () => {
+  const itEmail = 'ephrontuyishime21@gmail.com';
+  const existing = await Member.findOne({ email: itEmail });
+  if (!existing) {
+    await new Member({
+      id: 'it-super-master',
+      fullName: 'Esron Tuyishime (IT)',
+      email: itEmail,
+      phone: '+250 787 846 433',
+      role: 'it',
+      program: 'Software Engineering',
+      level: 'Expert',
+      diocese: 'Kigali',
+      department: 'IT & Infrastructure',
+      spiritPoints: 5000
+    }).save();
+    console.log('🛡️ SYSTEM BOOTSTRAP: IT Architect Account Created');
   }
-  
-  await logAction(`FINANCE: Transaction ${d?.transactionId} verified as ${status}`);
+};
+
+// --- MEMBERS ---
+app.get('/api/members', async (req, res) => res.json(await Member.find().sort({ createdAt: -1 })));
+app.put('/api/members/:id', async (req, res) => {
+  try {
+    const { id, _id, email, ...updateData } = req.body;
+    const query = req.params.id.includes('-') || req.params.id.startsWith('u') ? { id: req.params.id } : { _id: req.params.id };
+    const m = await Member.findOneAndUpdate(query, updateData, { new: true, upsert: true });
+    res.json(m);
+  } catch (err) { res.status(500).json({ error: 'Update failed' }); }
+});
+app.patch('/api/members/:id/role', async (req, res) => {
+  const query = req.params.id.includes('-') || req.params.id.startsWith('u') ? { id: req.params.id } : { _id: req.params.id };
+  res.json(await Member.findOneAndUpdate(query, { role: req.body.role }, { new: true }));
+});
+
+// --- SPIRITUAL ---
+app.get('/api/spiritual/verses', async (req, res) => res.json(await DailyVerse.find().sort({ date: -1 })));
+app.get('/api/spiritual/verses/daily', async (req, res) => res.json(await DailyVerse.findOne({ isActive: true }).sort({ date: -1 }) || {}));
+app.post('/api/spiritual/verses', async (req, res) => res.status(201).json(await new DailyVerse(req.body).save()));
+app.put('/api/spiritual/verses/:id', async (req, res) => res.json(await DailyVerse.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/spiritual/verses/:id', async (req, res) => { await DailyVerse.findByIdAndDelete(req.params.id); res.status(204).send(); });
+
+app.get('/api/spiritual/quizzes', async (req, res) => res.json(await BibleQuiz.find()));
+app.get('/api/spiritual/quizzes/active', async (req, res) => res.json(await BibleQuiz.find({ isActive: true })));
+app.post('/api/spiritual/quizzes', async (req, res) => res.status(201).json(await new BibleQuiz(req.body).save()));
+app.put('/api/spiritual/quizzes/:id', async (req, res) => res.json(await BibleQuiz.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/spiritual/quizzes/:id', async (req, res) => { await BibleQuiz.findByIdAndDelete(req.params.id); res.status(204).send(); });
+
+app.get('/api/spiritual/reflections', async (req, res) => res.json(await VerseReflection.find().sort({ timestamp: -1 })));
+app.post('/api/spiritual/reflections', async (req, res) => res.status(201).json(await new VerseReflection(req.body).save()));
+app.get('/api/spiritual/quiz-results', async (req, res) => res.json(await QuizResult.find().sort({ timestamp: -1 })));
+app.post('/api/spiritual/quiz-results', async (req, res) => res.status(201).json(await new QuizResult(req.body).save()));
+
+// --- CMS & DEPARTMENTS ---
+app.get('/api/news', async (req, res) => res.json(await News.find().sort({ date: -1 })));
+app.post('/api/news', async (req, res) => res.status(201).json(await new News(req.body).save()));
+app.get('/api/announcements', async (req, res) => res.json(await Announcement.find().sort({ date: -1 })));
+app.post('/api/announcements', async (req, res) => res.status(201).json(await new Announcement(req.body).save()));
+app.get('/api/leaders', async (req, res) => res.json(await Leader.find()));
+app.post('/api/leaders', async (req, res) => res.status(201).json(await new Leader(req.body).save()));
+app.get('/api/departments', async (req, res) => res.json(await Department.find()));
+app.get('/api/departments/interests', async (req, res) => res.json(await DepartmentInterest.find().sort({ date: -1 })));
+
+// --- FINANCE ---
+app.get('/api/donations', async (req, res) => res.json(await Donation.find().sort({ date: -1 })));
+app.post('/api/donations', async (req, res) => res.status(201).json(await new Donation(req.body).save()));
+app.patch('/api/donations/:id/status', async (req, res) => {
+  const d = await Donation.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+  if (req.body.status === 'Completed' && d?.project) await DonationProject.findOneAndUpdate({ title: d.project }, { $inc: { raised: d.amount } });
   res.json(d);
 });
 
-// --- GLOBAL CONFIGS ---
+// --- CONTACTS ---
+app.get('/api/contacts', async (req, res) => res.json(await ContactMessage.find().sort({ date: -1 })));
+app.post('/api/contacts', async (req, res) => res.status(201).json(await new ContactMessage(req.body).save()));
+
+// --- CONFIGS & SYSTEM ---
 app.get('/api/config/home', async (req, res) => res.json(await HomeConfig.findOne() || {}));
-app.get('/api/config/about', async (req, res) => res.json(await AboutConfig.findOne() || {}));
+app.put('/api/config/home', async (req, res) => res.json(await HomeConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true })));
+app.get('/api/config/about', async (req, res) => res.json(await AboutConfig.findOne() || { values: [], timeline: [] }));
+app.put('/api/config/about', async (req, res) => res.json(await AboutConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true })));
 app.get('/api/config/footer', async (req, res) => res.json(await FooterConfig.findOne() || {}));
+app.put('/api/config/footer', async (req, res) => res.json(await FooterConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true })));
 
-app.put('/api/config/home', async (req, res) => {
-  const result = await HomeConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true });
-  res.json(result);
+// --- UPDATED ROLES LIST ---
+app.get('/api/roles', (req, res) => {
+  const allTabs = ['tab.overview', 'tab.profile', 'tab.home', 'tab.about', 'tab.footer', 'tab.spiritual', 'tab.members', 'tab.clearance', 'tab.content', 'tab.bulletin', 'tab.depts', 'tab.leaders', 'tab.donations', 'tab.contacts', 'tab.system'];
+  res.json([
+    { id: 'it', label: 'IT Architect', icon: 'Shield', description: 'System-wide access and security administration.', permissions: [...allTabs, 'action.manage_roles', 'action.reset_db'] },
+    { id: 'executive', label: 'EXCOM Member', icon: 'Briefcase', description: 'General management and association oversight.', permissions: ['tab.overview', 'tab.profile', 'tab.content', 'tab.bulletin', 'tab.depts', 'tab.leaders', 'tab.contacts'] },
+    { id: 'accountant', label: 'Accountant', icon: 'Landmark', description: 'Treasury and financial ledger management.', permissions: ['tab.overview', 'tab.profile', 'tab.donations', 'action.verify_donations'] },
+    { id: 'secretary', label: 'Secretary', icon: 'MessageSquare', description: 'Communication and documentation management.', permissions: ['tab.overview', 'tab.profile', 'tab.content', 'tab.bulletin', 'tab.contacts'] },
+    { id: 'member', label: 'RASA Member', icon: 'User', description: 'Default portal access for association members.', permissions: ['tab.overview', 'tab.profile', 'tab.spiritual'] }
+  ]);
 });
 
-// --- SYSTEM & HEALTH ---
-/**
- * @swagger
- * /system/health:
- *   get:
- *     summary: Execute Kernel diagnostics
- */
-app.get('/api/system/health', async (req, res) => {
-  try {
-    const stats = await mongoose.connection.db?.stats();
-    res.json({
-      status: 'Online',
-      database: 'Local MongoDB',
-      storage: `${((stats?.dataSize || 0) / 1024).toFixed(2)} KB`,
-      collections: {
-        members: await Member.countDocuments(),
-        news: await News.countDocuments(),
-        donations: await Donation.countDocuments()
-      }
-    });
-  } catch (e) { res.status(500).json({ status: 'Error' }); }
-});
+app.get('/api/system/health', async (req, res) => res.json({ status: 'Online' }));
+app.get('/api/system/logs', async (req, res) => res.json(await SystemLog.find().sort({ timestamp: -1 }).limit(50)));
+app.get('/api/system/backups', (req, res) => res.json([]));
 
-app.listen(PORT, () => {
-  console.log(`🚀 RASA KERNEL LISTENING ON PORT ${PORT}`);
-  console.log(`📘 API DOCUMENTATION (SWAGGER): http://localhost:${PORT}/api-docs`);
+// --- SERVER START ---
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rasa_portal';
+mongoose.connect(MONGODB_URI).then(() => {
+  console.log('✅ KERNEL ONLINE');
+  bootstrapAdmin();
+  app.listen(PORT, () => console.log(`🚀 PORT ${PORT}`));
 });

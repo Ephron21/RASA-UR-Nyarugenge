@@ -16,8 +16,8 @@ const NewsFeedTab: React.FC<NewsFeedTabProps> = ({ news, onNew, onEdit, onDelete
   const [filter, setFilter] = useState<'all' | 'news' | 'event' | 'announcement'>('all');
 
   const filtered = news.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (item.content || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || item.category === filter;
     return matchesSearch && matchesFilter;
   });
@@ -40,7 +40,7 @@ const NewsFeedTab: React.FC<NewsFeedTabProps> = ({ news, onNew, onEdit, onDelete
         <div className="flex gap-2">
           {['all', 'news', 'event', 'announcement'].map(f => (
             <button 
-              key={f} 
+              key={`filter-${f}`} 
               onClick={() => setFilter(f as any)} 
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50'}`}
             >
@@ -62,9 +62,9 @@ const NewsFeedTab: React.FC<NewsFeedTabProps> = ({ news, onNew, onEdit, onDelete
 
       <div className="grid grid-cols-1 gap-6">
         <AnimatePresence mode="popLayout">
-          {filtered.map(item => (
+          {filtered.map((item, i) => (
             <motion.div 
-              key={item.id} 
+              key={`news-item-${item.id || i}`} 
               layout
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 

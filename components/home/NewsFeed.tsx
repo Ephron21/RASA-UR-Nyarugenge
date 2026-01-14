@@ -10,19 +10,23 @@ interface NewsFeedProps {
 }
 
 const NewsFeed: React.FC<NewsFeedProps> = ({ news }) => {
-  const latestNews = news.slice(0, 3);
+  const latestNews = (news || []).slice(0, 3);
 
   const formatDateRange = (item: NewsItem) => {
-    if (item.category === 'event' && (item.startDate || item.endDate)) {
-      const start = item.startDate ? new Date(item.startDate).toLocaleDateString() : '';
-      const end = item.endDate ? new Date(item.endDate).toLocaleDateString() : '';
-      
-      if (start && end) {
-        return start === end ? start : `${start} — ${end}`;
+    try {
+      if (item.category === 'event' && (item.startDate || item.endDate)) {
+        const start = item.startDate ? new Date(item.startDate).toLocaleDateString() : '';
+        const end = item.endDate ? new Date(item.endDate).toLocaleDateString() : '';
+        
+        if (start && end) {
+          return start === end ? start : `${start} — ${end}`;
+        }
+        return start || end;
       }
-      return start || end;
+      return item.date ? new Date(item.date).toLocaleDateString() : 'Recent';
+    } catch (e) {
+      return 'Recent';
     }
-    return new Date(item.date).toLocaleDateString();
   };
 
   return (
@@ -48,16 +52,16 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ news }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {latestNews.map((item, idx) => (
             <motion.div 
-              key={item.id} 
+              key={`news-home-${item.id || idx}`} 
               initial={{ y: 30, opacity: 0 }} 
               whileInView={{ y: 0, opacity: 1 }} 
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-white rounded-[3.5rem] overflow-hidden shadow-sm hover:shadow-3xl transition-all duration-700 group border border-gray-100 flex flex-col h-full"
+              className="bg-white rounded-[3.5rem] overflow-hidden shadow-sm hover:shadow-3xl transition-all duration-700 group border border-gray-100 shadow-cyan-500/5 flex flex-col h-full"
             >
               <div className="h-72 overflow-hidden relative">
                 <img 
-                  src={item.mediaUrl} 
+                  src={item.mediaUrl || 'https://images.unsplash.com/photo-1544427928-c49cdfebf193?q=80&w=2000'} 
                   alt={item.title} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                 />
@@ -92,9 +96,14 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ news }) => {
           ))}
           
           {latestNews.length === 0 && (
-            <div className="col-span-3 py-20 text-center space-y-4">
-              <Newspaper size={64} className="mx-auto text-gray-100" />
-              <p className="text-gray-400 font-bold italic">No stories published yet.</p>
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 py-40 text-center space-y-8 bg-white rounded-[4rem] border-2 border-dashed border-gray-100">
+              <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200">
+                <Newspaper size={48} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold font-serif italic text-gray-400">Archival Silence</h3>
+                <p className="text-gray-400 max-w-xs mx-auto text-sm">No testimonies or updates have been documented in the digital archive yet.</p>
+              </div>
             </div>
           )}
         </div>

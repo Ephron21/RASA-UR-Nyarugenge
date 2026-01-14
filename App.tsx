@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 // Fix framer-motion prop errors by casting motion to any
 import { AnimatePresence, motion as motionLib } from 'framer-motion';
 const motion = motionLib as any;
@@ -36,7 +36,25 @@ const AppContent: React.FC = () => {
   const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
   const [homeConfig, setHomeConfig] = useState<HomeConfig | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // --- AUTOMATIC ROLE REDIRECTION ---
+  // If user role changes, push them to the correct dashboard automatically
+  useEffect(() => {
+    if (!user) return;
+    
+    const isAdminRole = ['it', 'admin', 'executive', 'accountant', 'secretary'].includes(user.role);
+    const isDashboardPath = location.pathname === '/dashboard';
+    const isAdminPath = location.pathname === '/admin';
+
+    if (isAdminRole && isDashboardPath) {
+      navigate('/admin', { replace: true });
+    } else if (!isAdminRole && isAdminPath) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user?.role, location.pathname, navigate]);
 
   const refreshGlobalData = useCallback(async () => {
     try {

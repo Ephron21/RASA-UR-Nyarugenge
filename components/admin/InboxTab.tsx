@@ -32,8 +32,8 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
     API.departments.getInterests().then(setInterests);
   }, []);
 
-  const unreadInquiries = contactMsgs.filter(m => !m.isRead).length;
-  const pendingRecruitments = interests.filter(i => i.status === 'Pending').length;
+  const unreadInquiries = (contactMsgs || []).filter(m => !m.isRead).length;
+  const pendingRecruitments = (interests || []).filter(i => i.status === 'Pending').length;
 
   const handleOpenMessage = (msg: any) => {
     setSelectedMsg(msg);
@@ -63,8 +63,6 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
     if (type === 'sms') url = `sms:${phone}?body=${body}`;
     if (type === 'whatsapp') url = `https://wa.me/${phone.replace('+', '')}?text=${body}`;
 
-    // Logic Fix: System protocols (mailto, sms) should use window.location.href
-    // to avoid the blank browser tab issue shown in your screenshot.
     if (type === 'whatsapp') {
       window.open(url, '_blank');
     } else {
@@ -112,10 +110,10 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
 
       <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
         {activeInbox === 'Inquiry' ? (
-          contactMsgs.map(m => (
-            <div key={m.id} onClick={() => handleOpenMessage(m)} className={`p-8 flex items-start gap-6 group transition-all cursor-pointer hover:bg-gray-50/50 ${!m.isRead ? 'bg-cyan-50/15 border-l-4 border-cyan-500' : 'border-l-4 border-transparent'}`}>
+          (contactMsgs || []).map((m, i) => (
+            <div key={`inquiry-${m.id || i}`} onClick={() => handleOpenMessage(m)} className={`p-8 flex items-start gap-6 group transition-all cursor-pointer hover:bg-gray-50/50 ${!m.isRead ? 'bg-cyan-50/15 border-l-4 border-cyan-500' : 'border-l-4 border-transparent'}`}>
                <div className={`w-14 h-14 ${!m.isRead ? 'bg-cyan-500 text-white shadow-lg' : 'bg-gray-100 text-gray-400'} rounded-2xl flex items-center justify-center font-black text-2xl shrink-0 transition-all group-hover:scale-105`}>
-                 {m.fullName.charAt(0)}
+                 {m.fullName?.charAt(0) || '?'}
                </div>
                <div className="flex-grow space-y-2 min-w-0">
                  <div className="flex justify-between items-start gap-4">
@@ -123,7 +121,7 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
                      <p className="font-black text-gray-900 text-lg tracking-tight group-hover:text-cyan-600">{m.fullName}</p>
                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500/60">{m.email}</p>
                    </div>
-                   <span className="text-[10px] font-bold text-gray-400">{new Date(m.date).toLocaleDateString()}</span>
+                   <span className="text-[10px] font-bold text-gray-400">{m.date ? new Date(m.date).toLocaleDateString() : ''}</span>
                  </div>
                  <p className="text-sm font-black text-gray-800 tracking-tight">{m.subject}</p>
                  <p className="text-sm text-gray-500 leading-relaxed line-clamp-1">{m.message}</p>
@@ -135,10 +133,10 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
             </div>
           ))
         ) : (
-          interests.map(i => (
-            <div key={i.id} onClick={() => handleOpenMessage(i)} className={`p-8 flex items-start gap-6 group transition-all cursor-pointer hover:bg-gray-50/50 border-l-4 ${i.status === 'Pending' ? 'border-orange-400 bg-orange-50/10' : i.status === 'Approved' ? 'border-green-400' : 'border-red-400'}`}>
+          (interests || []).map((i, idx) => (
+            <div key={`interest-${i.id || idx}`} onClick={() => handleOpenMessage(i)} className={`p-8 flex items-start gap-6 group transition-all cursor-pointer hover:bg-gray-50/50 border-l-4 ${i.status === 'Pending' ? 'border-orange-400 bg-orange-50/10' : i.status === 'Approved' ? 'border-green-400' : 'border-red-400'}`}>
                <div className={`w-14 h-14 bg-gray-900 text-white rounded-2xl flex items-center justify-center font-black text-2xl shrink-0`}>
-                 {i.fullName.charAt(0)}
+                 {i.fullName?.charAt(0) || '?'}
                </div>
                <div className="flex-grow space-y-2 min-w-0">
                   <div className="flex justify-between items-start gap-4">
@@ -171,7 +169,7 @@ const InboxTab: React.FC<InboxTabProps> = ({ contactMsgs, onMarkRead, onMarkAllR
                <div className="p-10 border-b border-gray-50 flex justify-between items-start bg-gray-50/30">
                  <div className="flex gap-6 items-center">
                     <div className="w-16 h-16 bg-gray-900 text-white rounded-3xl flex items-center justify-center font-black text-3xl shadow-xl">
-                      {selectedMsg.fullName.charAt(0)}
+                      {selectedMsg.fullName?.charAt(0) || '?'}
                     </div>
                     <div>
                       <h4 className="text-2xl font-black text-gray-900 tracking-tight">{selectedMsg.fullName}</h4>
