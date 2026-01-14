@@ -1,6 +1,7 @@
-
 import React, { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib } from 'framer-motion';
+const motion = motionLib as any;
 import { Camera, Home as HomeIcon, Edit3, Image as ImageIcon, Sparkles, Quote, BarChart3 } from 'lucide-react';
 import { HomeConfig } from '../../types';
 

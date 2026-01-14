@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Edit3, Image as ImageIcon, History, Target, Sparkles, Star, Plus, Trash2, Save, Loader2, Camera, X } from 'lucide-react';
 import { AboutConfig, AboutValue, TimelineEvent } from '../../types';
@@ -15,7 +15,18 @@ const AboutEditorTab: React.FC<AboutEditorTabProps> = ({ config, onSubmit, isSyn
   const [historyPreview, setHistoryPreview] = useState<string | null>(null);
   const historyFileRef = useRef<HTMLInputElement>(null);
 
-  if (!localConfig) return null;
+  useEffect(() => {
+    if (config) {
+      setLocalConfig(config);
+    }
+  }, [config]);
+
+  if (!localConfig) return (
+    <div className="py-20 text-center space-y-4">
+      <Loader2 className="animate-spin mx-auto text-cyan-500" size={40} />
+      <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest">Awaiting Heritage Stream...</p>
+    </div>
+  );
 
   const handleChange = (field: string, value: any) => {
     setLocalConfig({ ...localConfig, [field]: value });

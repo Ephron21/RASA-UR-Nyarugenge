@@ -1,7 +1,8 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { AnimatePresence, motion as motionLib } from 'framer-motion';
+const motion = motionLib as any;
 import { Loader2 } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -17,96 +18,66 @@ import Departments from './pages/Departments';
 import Donations from './pages/Donations';
 import About from './pages/About';
 import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { User, NewsItem, Leader, Announcement, Department, FooterConfig } from './types';
 import { API } from './services/api';
 import { DEPARTMENTS as INITIAL_DEPTS } from './constants';
 
-const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+const AppContent: React.FC = () => {
+  const { user, isLoading: authLoading } = useAuth();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const location = useLocation();
 
-  useEffect(() => {
-    const initApp = async () => {
-      try {
-        const savedUser = localStorage.getItem('rasa_user');
-        if (savedUser) {
-          try {
-            setUser(JSON.parse(savedUser));
-          } catch (e) {
-            localStorage.removeItem('rasa_user');
-          }
-        }
+  const refreshGlobalData = useCallback(async () => {
+    try {
+      const results = await Promise.allSettled([
+        API.news.getAll(),
+        API.leaders.getAll(),
+        API.members.getAll(),
+        API.announcements.getAll(),
+        API.departments.getAll(),
+        API.footer.getConfig()
+      ]);
 
-        const results = await Promise.allSettled([
-          API.news.getAll(),
-          API.leaders.getAll(),
-          API.members.getAll(),
-          API.announcements.getAll(),
-          API.departments.getAll(),
-          API.footer.getConfig()
-        ]);
+      const [newsRes, leadersRes, membersRes, annRes, deptsRes, footerRes] = results;
 
-        const [newsRes, leadersRes, membersRes, announcementsRes, deptsRes, footerRes] = results;
-
-        if (newsRes.status === 'fulfilled') setNews(newsRes.value || []);
-        if (leadersRes.status === 'fulfilled') setLeaders(leadersRes.value || []);
-        if (membersRes.status === 'fulfilled') setMembers(membersRes.value || []);
-        if (announcementsRes.status === 'fulfilled') setAnnouncements(announcementsRes.value || []);
-        if (footerRes.status === 'fulfilled') setFooterConfig(footerRes.value);
-        if (deptsRes.status === 'fulfilled') {
-          const depts = deptsRes.value || [];
-          setDepartments(depts.length > 0 ? depts : INITIAL_DEPTS);
-        } else {
-          setDepartments(INITIAL_DEPTS);
-        }
-        
-      } catch (err) {
-        console.error('Boot system experienced issues:', err);
-        setDepartments(INITIAL_DEPTS);
-      } finally {
-        setIsLoading(false);
+      if (newsRes.status === 'fulfilled') setNews(newsRes.value || []);
+      if (leadersRes.status === 'fulfilled') setLeaders(leadersRes.value || []);
+      if (membersRes.status === 'fulfilled') setMembers(membersRes.value || []);
+      if (annRes.status === 'fulfilled') setAnnouncements(annRes.value || []);
+      if (footerRes.status === 'fulfilled') setFooterConfig(footerRes.value);
+      if (deptsRes.status === 'fulfilled') {
+        setDepartments(deptsRes.value?.length ? deptsRes.value : INITIAL_DEPTS);
       }
-    };
-    initApp();
+    } catch (err) {
+      console.error('Data sync issue:', err);
+    } finally {
+      setIsDataLoading(false);
+    }
   }, []);
 
-  const handleLogin = (u: User) => {
-    setUser(u);
-    localStorage.setItem('rasa_user', JSON.stringify(u));
-  };
+  useEffect(() => { refreshGlobalData(); }, [refreshGlobalData]);
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('rasa_user');
-  };
-
-  const handleUpdateSelf = (updatedUser: User) => {
-    setUser(updatedUser);
-    localStorage.setItem('rasa_user', JSON.stringify(updatedUser));
-  };
-
-  if (isLoading) {
+  if (authLoading || isDataLoading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 space-y-4">
         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
           <Loader2 className="text-cyan-500" size={48} />
         </motion.div>
-        <p className="font-black text-[10px] uppercase tracking-[0.4em] text-gray-400">Authenticating RASA Core...</p>
+        <p className="font-black text-[10px] uppercase tracking-[0.4em] text-gray-400">Synchronizing Divine Kernel...</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar user={user} departments={departments} onLogout={handleLogout} />
-      
+      <Navbar departments={departments} />
       <main className="flex-grow">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -116,57 +87,44 @@ const App: React.FC = () => {
                 ['it', 'admin', 'executive', 'accountant', 'secretary'].includes(user.role) 
                   ? <Navigate to="/admin" replace /> 
                   : <Navigate to="/dashboard" replace />
-              ) : <Portal onLogin={handleLogin} />
+              ) : <Portal />
             } />
             <Route path="/about" element={<About />} />
             <Route path="/news" element={<News news={news} />} />
             <Route path="/news/:id" element={<NewsDetail news={news} />} />
             <Route path="/announcements" element={<Announcements announcements={announcements} />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/departments" element={<Departments departments={departments} user={user} />} />
-            <Route path="/departments/:id" element={<Departments departments={departments} user={user} />} />
+            <Route path="/departments" element={<Departments departments={departments} />} />
+            <Route path="/departments/:id" element={<Departments departments={departments} />} />
             <Route path="/donations" element={<Donations />} />
-            
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute user={user}>
-                  <MemberDashboard user={user!} announcements={announcements} />
-                </ProtectedRoute>
-              } 
-            />
-            
+            <Route path="/dashboard" element={<ProtectedRoute><MemberDashboard announcements={announcements} /></ProtectedRoute>} />
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute user={user} allowedRoles={['it', 'admin', 'executive', 'accountant', 'secretary']}> 
+                <ProtectedRoute allowedRoles={['it', 'admin', 'executive', 'accountant', 'secretary']}> 
                   <AdminDashboard 
-                    user={user!}
-                    members={members} 
-                    news={news} 
-                    leaders={leaders}
-                    announcements={announcements}
-                    depts={departments}
-                    onUpdateNews={setNews} 
-                    onUpdateLeaders={setLeaders} 
-                    onUpdateMembers={setMembers}
-                    onUpdateAnnouncements={setAnnouncements}
-                    onUpdateDepartments={setDepartments}
-                    onUpdateSelf={handleUpdateSelf}
-                    onUpdateFooter={setFooterConfig}
+                    members={members} news={news} leaders={leaders}
+                    announcements={announcements} depts={departments}
+                    onUpdateNews={setNews} onUpdateLeaders={setLeaders} 
+                    onUpdateMembers={setMembers} onUpdateAnnouncements={setAnnouncements}
+                    onUpdateDepartments={setDepartments} onUpdateFooter={setFooterConfig}
                   />
                 </ProtectedRoute>
               } 
             />
-
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>
       </main>
-
       <Footer departments={departments} config={footerConfig} />
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <AuthProvider>
+    <AppContent />
+  </AuthProvider>
+);
 
 export default App;

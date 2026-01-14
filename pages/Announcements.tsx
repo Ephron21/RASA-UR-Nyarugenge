@@ -1,6 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib, AnimatePresence } from 'framer-motion';
+const motion = motionLib as any;
 import { 
   Bell, Info, AlertTriangle, CheckCircle, 
   ArrowRight, Star, Clock, Filter, 

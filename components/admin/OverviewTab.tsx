@@ -1,6 +1,7 @@
-
 import React from 'react';
-import { motion } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib } from 'framer-motion';
+const motion = motionLib as any;
 import { 
   Users, MessageSquare, UserCheck, Newspaper, 
   TrendingUp, Bell, Briefcase, Database, 

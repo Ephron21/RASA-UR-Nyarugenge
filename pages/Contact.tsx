@@ -1,6 +1,7 @@
-
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib, AnimatePresence } from 'framer-motion';
+const motion = motionLib as any;
 import { Mail, Phone, MapPin, Send, Facebook, Twitter, Instagram, MessageSquare, CheckCircle2, Loader2, User as UserIcon } from 'lucide-react';
 import { API } from '../services/api';
 

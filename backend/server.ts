@@ -2,226 +2,155 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import swaggerJsdoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
 import { 
   News, Leader, Announcement, Member, 
-  Department, DepartmentInterest, ContactMessage, 
-  HomeConfig, Donation, DonationProject, AboutConfig,
-  DailyVerse, VerseReflection, BibleQuiz, QuizResult,
-  SystemLog, OTPRecord
+  Department, ContactMessage, 
+  HomeConfig, SystemLog, DailyVerse, BibleQuiz, QuizResult, AboutConfig, FooterConfig
 } from './models';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-
-// SWAGGER CONFIGURATION
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'RASA UR-Nyarugenge API',
-      version: '2.5.0',
-      description: 'Divine Kernel API. Use this to verify that data is correctly hitting your Local MongoDB Collections.',
-      contact: {
-        name: 'RASA IT Infrastructure',
-        email: 'it@rasa-nyg.org'
-      },
-    },
-    servers: [{ url: `http://localhost:${PORT}` }],
-    components: {
-      schemas: {
-        Member: {
-          type: 'object',
-          properties: {
-            fullName: { type: 'string' },
-            email: { type: 'string' },
-            phone: { type: 'string' },
-            role: { type: 'string', enum: ['member', 'admin', 'executive', 'accountant', 'secretary', 'it'] },
-            program: { type: 'string' },
-            level: { type: 'string' }
-          }
-        },
-        News: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            content: { type: 'string' },
-            category: { type: 'string', enum: ['event', 'news', 'announcement'] },
-            mediaUrl: { type: 'string' }
-          }
-        }
-      }
-    }
-  },
-  apis: ['./backend/server.ts'], 
-};
-
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Log helper
-const logAction = async (action: string) => {
-  try {
-    const log = new SystemLog({ action });
-    await log.save();
-  } catch (e) { console.error("Logger fail", e); }
-};
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rasa_portal';
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to LOCAL MONGODB at 27017'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log('✅ KERNEL ONLINE: LOCAL MONGODB CONNECTED'))
+  .catch(err => console.error('❌ KERNEL OFFLINE: CONNECTION ERROR:', err));
 
-/**
- * @swagger
- * /api/system/health:
- *   get:
- *     summary: Verify Local MongoDB and Backend synchronization
- *     tags: [System]
- */
+const logAction = async (action: string) => {
+  try { await new SystemLog({ action }).save(); } catch (e) { console.error("Log failed", e); }
+};
+
+// --- NEWS (SPIRIT FEED) CRUD ---
+app.get('/api/news', async (req, res) => res.json(await News.find().sort({ date: -1 })));
+app.post('/api/news', async (req, res) => {
+  const n = new News(req.body);
+  await n.save();
+  await logAction(`CMS: News Story Published - ${n.title}`);
+  res.status(201).json(n);
+});
+app.put('/api/news/:id', async (req, res) => {
+  const n = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  await logAction(`CMS: News Story Refined - ${n?.title}`);
+  res.json(n);
+});
+app.delete('/api/news/:id', async (req, res) => {
+  const n = await News.findByIdAndDelete(req.params.id);
+  await logAction(`CMS: News Story Purged - ${n?.title}`);
+  res.json({ message: 'Success' });
+});
+
+// --- ANNOUNCEMENT (BULLETIN) CRUD ---
+app.get('/api/announcements', async (req, res) => res.json(await Announcement.find().sort({ date: -1 })));
+app.post('/api/announcements', async (req, res) => {
+  const ann = new Announcement(req.body);
+  await ann.save();
+  await logAction(`CMS: Bulletin Broadcasted - ${ann.title}`);
+  res.status(201).json(ann);
+});
+app.put('/api/announcements/:id', async (req, res) => {
+  const ann = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  await logAction(`CMS: Bulletin Updated - ${ann?.title}`);
+  res.json(ann);
+});
+app.delete('/api/announcements/:id', async (req, res) => {
+  const ann = await Announcement.findByIdAndDelete(req.params.id);
+  res.json({ message: 'Success' });
+});
+
+// --- SPIRITUAL HUB (VERSES & QUIZZES) CRUD ---
+app.get('/api/spiritual/verses', async (req, res) => res.json(await DailyVerse.find().sort({ date: -1 })));
+app.get('/api/spiritual/verses/daily', async (req, res) => {
+  const v = await DailyVerse.findOne({ isActive: true }).sort({ date: -1 });
+  res.json(v);
+});
+app.post('/api/spiritual/verses', async (req, res) => {
+  const v = new DailyVerse(req.body);
+  await v.save();
+  await logAction(`SPIRIT: New Manna Published - ${v.theme}`);
+  res.status(201).json(v);
+});
+app.put('/api/spiritual/verses/:id', async (req, res) => res.json(await DailyVerse.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/spiritual/verses/:id', async (req, res) => res.json(await DailyVerse.findByIdAndDelete(req.params.id)));
+
+app.get('/api/spiritual/quizzes', async (req, res) => res.json(await BibleQuiz.find()));
+app.get('/api/spiritual/quizzes/active', async (req, res) => res.json(await BibleQuiz.find({ isActive: true })));
+app.post('/api/spiritual/quizzes', async (req, res) => {
+  const q = new BibleQuiz(req.body);
+  await q.save();
+  await logAction(`SPIRIT: Sanctuary Test Deployed - ${q.title}`);
+  res.status(201).json(q);
+});
+app.put('/api/spiritual/quizzes/:id', async (req, res) => res.json(await BibleQuiz.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/spiritual/quizzes/:id', async (req, res) => res.json(await BibleQuiz.findByIdAndDelete(req.params.id)));
+
+// --- DEPARTMENTS (MINISTRIES) CRUD ---
+app.get('/api/departments', async (req, res) => res.json(await Department.find()));
+app.post('/api/departments', async (req, res) => {
+  const dept = new Department(req.body);
+  await dept.save();
+  await logAction(`SYS: Ministry Init - ${dept.name}`);
+  res.status(201).json(dept);
+});
+app.put('/api/departments/:id', async (req, res) => res.json(await Department.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/departments/:id', async (req, res) => res.json(await Department.findByIdAndDelete(req.params.id)));
+
+// --- LEADERS CRUD ---
+app.get('/api/leaders', async (req, res) => res.json(await Leader.find().sort({ name: 1 })));
+app.post('/api/leaders', async (req, res) => res.json(await new Leader(req.body).save()));
+app.put('/api/leaders/:id', async (req, res) => res.json(await Leader.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/leaders/:id', async (req, res) => res.json(await Leader.findByIdAndDelete(req.params.id)));
+
+// --- CONTACTS & MESSAGES ---
+app.get('/api/contacts', async (req, res) => res.json(await ContactMessage.find().sort({ date: -1 })));
+app.post('/api/contacts', async (req, res) => res.json(await new ContactMessage(req.body).save()));
+app.patch('/api/contacts/:id/read', async (req, res) => res.json(await ContactMessage.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true })));
+app.delete('/api/contacts/:id', async (req, res) => res.json(await ContactMessage.findByIdAndDelete(req.params.id)));
+
+// --- GLOBAL SETTINGS ---
+app.get('/api/config/home', async (req, res) => res.json(await HomeConfig.findOne() || {}));
+app.put('/api/config/home', async (req, res) => {
+  const result = await HomeConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true, setDefaultsOnInsert: true });
+  await logAction('SYS: Home Config Updated');
+  res.json(result);
+});
+
+app.get('/api/config/about', async (req, res) => res.json(await AboutConfig.findOne() || {}));
+app.put('/api/config/about', async (req, res) => {
+  const result = await AboutConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true, setDefaultsOnInsert: true });
+  await logAction('SYS: About Config Updated');
+  res.json(result);
+});
+
+app.get('/api/config/footer', async (req, res) => res.json(await FooterConfig.findOne() || {}));
+app.put('/api/config/footer', async (req, res) => {
+  const result = await FooterConfig.findOneAndUpdate({}, req.body, { upsert: true, new: true, setDefaultsOnInsert: true });
+  await logAction('SYS: Footer Config Updated');
+  res.json(result);
+});
+
+// --- SYSTEM & LOGS ---
 app.get('/api/system/health', async (req, res) => {
   try {
     const stats = await mongoose.connection.db?.stats();
-    const memberCount = await Member.countDocuments();
-    const verseCount = await DailyVerse.countDocuments();
-    const newsCount = await News.countDocuments();
-
     res.json({
       status: 'Online',
-      database: 'Local MongoDB (Connected)',
-      collections: {
-        members: memberCount,
-        verses: verseCount,
-        news: newsCount
-      },
+      database: 'Local MongoDB',
       storage: `${((stats?.dataSize || 0) / 1024).toFixed(2)} KB`,
-      version: '2.5.0-Verified',
-      timestamp: new Date()
+      version: '2.5.0-CompleteSync',
+      collections: {
+        members: await Member.countDocuments(),
+        news: await News.countDocuments(),
+        announcements: await Announcement.countDocuments(),
+        verses: await DailyVerse.countDocuments()
+      }
     });
-  } catch (e) {
-    res.json({ status: 'Online', database: 'Disconnected', timestamp: new Date() });
-  }
+  } catch (e) { res.status(500).json({ status: 'Error' }); }
 });
 
-// SPIRITUAL HUB ROUTES
-app.get('/api/spiritual/verses/daily', async (req, res) => {
-  try {
-    const verse = await DailyVerse.findOne({ isActive: true }).sort({ date: -1 });
-    res.json(verse);
-  } catch (err) { res.status(500).json({ error: 'DB Fetch Fail' }); }
-});
+app.get('/api/system/logs', async (req, res) => res.json(await SystemLog.find().sort({ timestamp: -1 }).limit(50)));
 
-app.get('/api/spiritual/verses', async (req, res) => {
-  try {
-    const verses = await DailyVerse.find().sort({ date: -1 });
-    res.json(verses);
-  } catch (err) { res.status(500).json({ error: 'DB Fetch Fail' }); }
-});
-
-app.post('/api/spiritual/verses', async (req, res) => {
-  try {
-    const verse = new DailyVerse(req.body);
-    await verse.save();
-    await logAction(`CMS: New Verse Created in MongoDB - ${verse.theme}`);
-    res.status(201).json(verse);
-  } catch (err) { res.status(400).json({ error: 'Creation failed' }); }
-});
-
-app.delete('/api/spiritual/verses/:id', async (req, res) => {
-  try {
-    await DailyVerse.findByIdAndDelete(req.params.id);
-    res.status(204).send();
-  } catch (err) { res.status(500).json({ error: 'Deletion failed' }); }
-});
-
-app.get('/api/spiritual/quizzes/active', async (req, res) => {
-  try {
-    const quizzes = await BibleQuiz.find({ isActive: true });
-    res.json(quizzes);
-  } catch (err) { res.status(500).json({ error: 'DB Fetch Fail' }); }
-});
-
-app.post('/api/spiritual/quiz-results', async (req, res) => {
-  try {
-    const result = new QuizResult(req.body);
-    await result.save();
-    const pointsToAdd = Math.floor((result.score / result.total) * 100);
-    await Member.findByIdAndUpdate(result.userId, { $inc: { spiritPoints: pointsToAdd } });
-    await logAction(`SPIRIT: Quiz Logged in MongoDB for ${result.userId}`);
-    res.status(201).json(result);
-  } catch (err) { res.status(400).json({ error: 'Submission failed' }); }
-});
-
-// ANNOUNCEMENT ROUTES (BULLETIN)
-app.get('/api/announcements', async (req, res) => {
-  try {
-    const announcements = await Announcement.find().sort({ date: -1 });
-    res.json(announcements);
-  } catch (err) { res.status(500).json({ error: 'Bulletin fetch fail' }); }
-});
-
-app.post('/api/announcements', async (req, res) => {
-  try {
-    const announcement = new Announcement(req.body);
-    await announcement.save();
-    await logAction(`CMS: New Announcement Published - ${announcement.title}`);
-    res.status(201).json(announcement);
-  } catch (err) { res.status(400).json({ error: 'Publish failed' }); }
-});
-
-app.put('/api/announcements/:id', async (req, res) => {
-  try {
-    const updated = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    await logAction(`CMS: Announcement Modified - ${updated?.title}`);
-    res.json(updated);
-  } catch (err) { res.status(400).json({ error: 'Update failed' }); }
-});
-
-app.delete('/api/announcements/:id', async (req, res) => {
-  try {
-    await Announcement.findByIdAndDelete(req.params.id);
-    await logAction(`SECURITY: Announcement Purged - ${req.params.id}`);
-    res.status(204).send();
-  } catch (err) { res.status(500).json({ error: 'Purge failed' }); }
-});
-
-// CORE CMS ROUTES
-app.get('/api/members', async (req, res) => {
-  try {
-    const members = await Member.find().sort({ createdAt: -1 });
-    res.json(members);
-  } catch (err) { res.status(500).json({ error: 'DB Fetch Fail' }); }
-});
-
-app.post('/api/members', async (req, res) => {
-  try {
-    const member = new Member(req.body);
-    await member.save();
-    res.status(201).json(member);
-  } catch (err) { res.status(400).json({ error: 'Creation failed' }); }
-});
-
-app.get('/api/news', async (req, res) => {
-  try {
-    const news = await News.find().sort({ date: -1 });
-    res.json(news);
-  } catch (err) { res.status(500).json({ error: 'DB Fetch Fail' }); }
-});
-
-app.get('/api/system/logs', async (req, res) => {
-  try {
-    const logs = await SystemLog.find().sort({ timestamp: -1 }).limit(50);
-    res.json(logs);
-  } catch (err) { res.status(500).json({ error: 'Fetch failed' }); }
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 RASA Backend initialized on port ${PORT}`);
-  console.log(`📂 Swagger Docs (Local MongoDB Tester): http://localhost:${PORT}/api-docs`);
-});
+app.listen(PORT, () => console.log(`🚀 KERNEL LISTENING ON PORT ${PORT}`));

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Youtube, MessageCircle, Music, Type, Save, Loader2, Globe, Info } from 'lucide-react';
 import { FooterConfig } from '../../types';
@@ -13,7 +13,18 @@ interface FooterEditorTabProps {
 const FooterEditorTab: React.FC<FooterEditorTabProps> = ({ config, onSubmit, isSyncing }) => {
   const [localConfig, setLocalConfig] = useState<FooterConfig | null>(config);
 
-  if (!localConfig) return null;
+  useEffect(() => {
+    if (config) {
+      setLocalConfig(config);
+    }
+  }, [config]);
+
+  if (!localConfig) return (
+    <div className="py-20 text-center space-y-4">
+      <Loader2 className="animate-spin mx-auto text-cyan-500" size={40} />
+      <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest">Handshaking with Footer Module...</p>
+    </div>
+  );
 
   const handleChange = (field: keyof FooterConfig, value: string) => {
     setLocalConfig({ ...localConfig, [field]: value });

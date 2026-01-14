@@ -6,12 +6,13 @@ import {
   LayoutDashboard, Home as HomeIcon, Heart, 
   MessageSquare, Briefcase, Bell, HardDrive, 
   History, Shield, Loader2, Database, Search, Sparkles, User as UserIcon, Settings,
-  Type
+  Type, X, Save
 } from 'lucide-react';
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig, FooterConfig } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig, FooterConfig, DailyVerse, BibleQuiz, Donation, Role } from '../types';
 import { API } from '../services/api';
 
-// Modular Tab Components
+// Tab Components
 import OverviewTab from '../components/admin/OverviewTab';
 import HomeEditorTab from '../components/admin/HomeEditorTab';
 import AboutEditorTab from '../components/admin/AboutEditorTab';
@@ -32,9 +33,10 @@ import NewsForm from '../components/admin/NewsForm';
 import AnnouncementForm from '../components/admin/AnnouncementForm';
 import DepartmentForm from '../components/admin/DepartmentForm';
 import LeaderForm from '../components/admin/LeaderForm';
+import RoleEditorForm from '../components/admin/RoleEditorForm';
+import MemberEditorForm from '../components/admin/MemberEditorForm';
 
 interface AdminDashboardProps {
-  user: User;
   members: User[];
   news: NewsItem[];
   leaders: Leader[];
@@ -45,51 +47,49 @@ interface AdminDashboardProps {
   onUpdateMembers: (members: User[]) => void;
   onUpdateAnnouncements: (announcements: Announcement[]) => void;
   onUpdateDepartments: (depts: Department[]) => void;
-  onUpdateSelf: (user: User) => void;
   onUpdateFooter: (config: FooterConfig) => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  user: currentUser, members, news, leaders, announcements, depts,
-  onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments, onUpdateSelf, onUpdateFooter
+  members, news, leaders, announcements, depts,
+  onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments, onUpdateFooter
 }) => {
+  const { user: currentUser, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [logs, setLogs] = useState<any[]>([]);
-  const [dbHealth, setDbHealth] = useState<any>({ status: 'Online', size: '0KB', lastSync: 'N/A' });
+  const [dbHealth, setDbHealth] = useState<any>({ status: 'Online', size: '0KB' });
   const [contactMsgs, setContactMsgs] = useState<ContactMessage[]>([]);
   const [homeSetup, setHomeSetup] = useState<HomeConfig | null>(null);
   const [aboutSetup, setAboutSetup] = useState<AboutConfig | null>(null);
   const [footerSetup, setFooterSetup] = useState<FooterConfig | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Modal Control
-  const [showModal, setShowModal] = useState<'news' | 'leader' | 'ann' | 'dept' | 'member' | null>(null);
+  const [showModal, setShowModal] = useState<'news' | 'leader' | 'ann' | 'dept' | 'member' | 'role' | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
 
-  // Permissions Mapping
-  const isIT = currentUser.role === 'it';
-  const isAccountant = currentUser.role === 'accountant';
-  const isSecretary = currentUser.role === 'secretary';
-  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'it';
-  const isExecutive = currentUser.role === 'executive';
+  const isIT = currentUser?.role === 'it';
+  const isAccountant = currentUser?.role === 'accountant';
+  const isExcom = currentUser?.role === 'executive' || currentUser?.role === 'admin';
+  const isDeptLeader = currentUser?.role === 'secretary'; 
 
   const rolePermissions = useMemo(() => ({
     canViewTab: (tabId: string) => {
       if (isIT) return true;
-      if (isAccountant) return ['overview', 'donations', 'profile'].includes(tabId);
-      if (isSecretary) return ['overview', 'members', 'content', 'bulletin', 'contacts', 'profile'].includes(tabId);
-      if (isExecutive) return tabId !== 'system';
+      if (isAccountant) return ['overview', 'profile', 'donations'].includes(tabId);
+      if (isDeptLeader) return ['overview', 'profile', 'content', 'bulletin'].includes(tabId);
+      if (isExcom) return ['overview', 'profile', 'home', 'about', 'footer', 'spiritual', 'members', 'content', 'bulletin', 'depts', 'leaders', 'donations', 'contacts'].includes(tabId);
       return ['overview', 'profile'].includes(tabId);
     },
-    canManageMembers: isIT,
-    canManageBulletins: isIT,
-    canUpdateContent: isIT || isSecretary || isAdmin || isExecutive,
-    canDelete: isIT,
-    canVerifyDonations: isAccountant
-  }), [currentUser.role]);
+    canManageRoles: isIT,
+    canManageFinance: isAccountant || isIT,
+    canPurgeFinance: isIT,
+    canManageSystem: isIT,
+    canManageContent: isIT || isExcom || isDeptLeader
+  }), [currentUser?.role, isIT, isAccountant, isExcom, isDeptLeader]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -110,23 +110,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchData = async () => {
     try {
-      const [c, h, a, health, l, f] = await Promise.all([
-        API.contacts.getAll(), 
-        API.home.getConfig(),
-        API.about.getConfig(),
-        API.system.getHealth(),
-        API.system.getLogs(),
-        API.footer.getConfig()
+      const [c, h, a, health, l, f, an, de, lea, ne, me] = await Promise.all([
+        API.contacts.getAll(), API.home.getConfig(), API.about.getConfig(), API.system.getHealth(), 
+        API.system.getLogs(), API.footer.getConfig(), API.announcements.getAll(),
+        API.departments.getAll(), API.leaders.getAll(), API.news.getAll(), API.members.getAll()
       ]);
-      setContactMsgs(c);
-      setHomeSetup(h);
-      setAboutSetup(a);
-      setDbHealth(health);
-      setLogs(l);
-      setFooterSetup(f);
-    } catch (e) {
-      console.error("Fetch error", e);
-    }
+      setContactMsgs(c); setHomeSetup(h); setAboutSetup(a); setDbHealth(health); setLogs(l); setFooterSetup(f);
+      onUpdateAnnouncements(an); onUpdateDepartments(de); onUpdateLeaders(lea); onUpdateNews(ne); onUpdateMembers(me);
+      if (f) onUpdateFooter(f);
+    } catch (e) { console.error("Admin Fetch Error:", e); }
   };
 
   useEffect(() => { fetchData(); }, [activeTab]);
@@ -135,127 +127,79 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => { setFilePreview(reader.result as string); setUrlInput(''); };
+      reader.onloadend = () => setFilePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const commitWipe = async (type: any, id: string) => {
-    if (!rolePermissions.canDelete) return alert("Security: Only IT has wipe authority.");
-    if (!window.confirm("Wipe this record permanently?")) return;
+  const handleUpdateRole = async (role: Role) => {
+    if (!editingItem) return;
     setIsSyncing(true);
-    await (API as any)[type].delete(id);
-    await fetchData();
-    // Refresh parent state
-    if (type === 'members') onUpdateMembers(await API.members.getAll());
-    if (type === 'news') onUpdateNews(await API.news.getAll());
-    if (type === 'announcements') onUpdateAnnouncements(await API.announcements.getAll());
-    if (type === 'departments') onUpdateDepartments(await API.departments.getAll());
-    if (type === 'leaders') onUpdateLeaders(await API.leaders.getAll());
-    setIsSyncing(false);
+    try {
+      await API.members.updateRole(editingItem.id, role);
+      await fetchData();
+      setShowModal(null);
+      setEditingItem(null);
+    } finally { setIsSyncing(false); }
+  };
+
+  const handleUpdateAnnStatus = async (id: string, active: boolean) => {
+    setIsSyncing(true);
+    try {
+      await API.announcements.update(id, { isActive: active });
+      await fetchData();
+    } finally { setIsSyncing(false); }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
-    const formData = new FormData(e.target as HTMLFormElement);
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
     const media = filePreview || urlInput || editingItem?.image || editingItem?.mediaUrl || editingItem?.profileImage;
 
     try {
-      if (showModal === 'news') {
-        const item = { 
-          title: formData.get('title') as string, 
-          content: formData.get('content') as string, 
-          category: formData.get('category') as any, 
-          mediaUrl: media, 
-          mediaType: formData.get('mediaType') as any, 
-          author: currentUser.fullName, 
-          date: editingItem?.date || new Date().toISOString().split('T')[0],
-          startDate: formData.get('startDate') as string || undefined,
-          endDate: formData.get('endDate') as string || undefined,
-        };
-        if (editingItem) await API.news.update(editingItem.id, item); 
-        else await API.news.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateNews(await API.news.getAll());
-      } else if (showModal === 'ann') {
-        if (!rolePermissions.canManageBulletins) return alert("Unauthorized: Only IT can modify bulletins.");
-        const item = { 
-          title: formData.get('title') as string, content: formData.get('content') as string,
-          status: formData.get('status') as any, color: formData.get('color') as string,
-          isActive: formData.get('isActive') === 'on', date: editingItem?.date || new Date().toISOString().split('T')[0]
-        };
-        if (editingItem) await API.announcements.update(editingItem.id, item);
-        else await API.announcements.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateAnnouncements(await API.announcements.getAll());
+      if (showModal === 'ann') {
+        const item = { title: formData.get('title') as string, content: formData.get('content') as string, status: formData.get('status') as any, color: formData.get('color') as string, isActive: form.querySelector<HTMLInputElement>('[name="isActive"]')?.checked ?? true, date: editingItem?.date || new Date().toISOString().split('T')[0] };
+        if (editingItem) await API.announcements.update(editingItem.id, item); else await API.announcements.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
       } else if (showModal === 'dept') {
-        const item = {
-          name: formData.get('name') as string, description: formData.get('description') as string,
-          icon: formData.get('icon') as string, details: formData.get('details') as string,
-          image: media, activities: (formData.get('activities') as string).split(',').map(s => s.trim())
-        };
-        if (editingItem) await API.departments.update(editingItem.id, item);
-        else await API.departments.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateDepartments(await API.departments.getAll());
+        const item = { name: formData.get('name') as string, description: formData.get('description') as string, details: formData.get('details') as string, icon: formData.get('icon') as string, category: formData.get('category') as string, activities: (formData.get('activities') as string).split(',').map(s => s.trim()), image: media };
+        if (editingItem) await API.departments.update(editingItem.id, item); else await API.departments.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
       } else if (showModal === 'leader') {
-        const item = {
-          name: formData.get('name') as string, position: formData.get('position') as string,
-          phone: formData.get('phone') as string, academicYear: formData.get('academicYear') as string,
-          type: formData.get('type') as any, image: media
-        };
-        if (editingItem) await API.leaders.update(editingItem.id, item);
-        else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateLeaders(await API.leaders.getAll());
+        const item = { name: formData.get('name') as string, position: formData.get('position') as string, phone: formData.get('phone') as string, academicYear: formData.get('academicYear') as string, image: media, type: formData.get('type') as any };
+        if (editingItem) await API.leaders.update(editingItem.id, item); else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+      } else if (showModal === 'news') {
+        const item = { title: formData.get('title') as string, content: formData.get('content') as string, category: formData.get('category') as any, mediaUrl: media, mediaType: formData.get('mediaType') as any, author: currentUser?.fullName || 'Admin', date: editingItem?.date || new Date().toISOString().split('T')[0] };
+        if (editingItem) await API.news.update(editingItem.id, item); else await API.news.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
       } else if (showModal === 'member') {
-        if (!rolePermissions.canManageMembers) return alert("Unauthorized: Only IT can modify members.");
-        const item = {
-          fullName: formData.get('fullName') as string, email: formData.get('email') as string,
-          phone: formData.get('phone') as string, program: formData.get('program') as string,
-          level: formData.get('level') as string, diocese: formData.get('diocese') as string,
-          department: formData.get('department') as string, role: formData.get('role') as any,
-          profileImage: media, createdAt: editingItem?.createdAt || new Date().toISOString()
-        };
+        const item = { fullName: formData.get('fullName') as string, email: formData.get('email') as string, phone: formData.get('phone') as string, program: formData.get('program') as string, level: formData.get('level') as string, diocese: formData.get('diocese') as string, department: formData.get('department') as string, profileImage: media };
         if (editingItem) await API.members.update(editingItem.id, item);
-        else await API.members.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
-        onUpdateMembers(await API.members.getAll());
       }
-      setShowModal(null);
-      setEditingItem(null);
-      setFilePreview(null);
-      setUrlInput('');
-    } finally {
-      setIsSyncing(false);
-    }
+      await fetchData();
+      setShowModal(null); setEditingItem(null); setFilePreview(null); setUrlInput('');
+    } finally { setIsSyncing(false); }
   };
 
-  const handleAdminUpdateSelf = async (updated: User) => {
+  const handleDelete = async (collection: string, id: string) => {
+    if (!window.confirm('Purge from MongoDB permanently?')) return;
     setIsSyncing(true);
     try {
-      await API.members.update(currentUser.id, updated);
-      onUpdateSelf(updated);
-      onUpdateMembers(await API.members.getAll());
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleUpdateFooterConfig = async (config: FooterConfig) => {
-    setIsSyncing(true);
-    try {
-      await API.footer.updateConfig(config);
-      onUpdateFooter(config);
-      setFooterSetup(config);
-    } finally {
-      setIsSyncing(false);
-    }
+      if (collection === 'ann') await API.announcements.delete(id);
+      else if (collection === 'dept') await API.departments.delete(id);
+      else if (collection === 'news') await API.news.delete(id);
+      else if (collection === 'leaders') await API.leaders.delete(id);
+      else if (collection === 'members') await API.members.delete(id);
+      await fetchData();
+    } finally { setIsSyncing(false); }
   };
 
   return (
     <div className="min-h-screen pt-28 pb-20 bg-[#F9FBFC]">
       <AnimatePresence>
         {isSyncing && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 right-10 z-[300] bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white/10 backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-10 right-10 z-[300] bg-gray-900 text-white px-6 py-4 rounded-2xl flex items-center gap-4 shadow-2xl">
             <Loader2 size={18} className="animate-spin text-cyan-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">Processing Logic...</span>
+            <span className="text-[10px] uppercase tracking-widest font-black">Kernel Sync...</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -264,19 +208,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex flex-col lg:flex-row gap-8">
           <aside className="w-full lg:w-64 shrink-0">
             <div className="bg-white p-4 rounded-[2.5rem] shadow-sm border border-gray-100 sticky top-28">
-              <div className="flex items-center gap-3 ml-4 mb-6 pt-4">
-                <div className={`w-10 h-10 ${isIT ? 'bg-gray-900 shadow-gray-200' : 'bg-cyan-500 shadow-cyan-100'} rounded-xl flex items-center justify-center text-white shadow-lg`}>
-                   {isIT ? <Shield size={20} /> : <LayoutDashboard size={20} />}
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Layer Security</p>
-                  <p className={`text-xs font-black uppercase tracking-widest ${isIT ? 'text-gray-900' : 'text-cyan-600'}`}>{currentUser.role}</p>
-                </div>
+              <div className="flex items-center gap-3 ml-4 mb-8 pt-4">
+                <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg"><Shield size={20} className="text-cyan-400" /></div>
+                <div><p className="text-[9px] font-black uppercase text-gray-400 mb-1">Clearance</p><p className="text-xs font-black text-gray-900 uppercase">{currentUser?.role}</p></div>
               </div>
               <div className="space-y-1">
                 {tabs.map(tab => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all font-bold text-xs ${activeTab === tab.id ? 'bg-gray-900 text-white shadow-xl' : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-50'}`}>
-                    <tab.icon size={16} /> <span>{tab.label}</span>
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-6 py-3.5 rounded-2xl font-bold text-xs transition-all ${activeTab === tab.id ? 'bg-[#0D1117] text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'}`}>
+                    <tab.icon size={18} strokeWidth={activeTab === tab.id ? 2.5 : 2} /> <span>{tab.label}</span>
                   </button>
                 ))}
               </div>
@@ -286,19 +225,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <main className="flex-grow min-w-0">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && <OverviewTab members={members} news={news} leaders={leaders} announcements={announcements} contactMsgs={contactMsgs} depts={depts} logs={logs} />}
-              {activeTab === 'profile' && <ProfileEditorTab user={currentUser} onUpdate={handleAdminUpdateSelf} isSyncing={isSyncing} />}
-              {activeTab === 'home' && <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={async (e) => { e.preventDefault(); setIsSyncing(true); await API.home.updateConfig(homeSetup!); setIsSyncing(false); }} />}
-              {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (u) => { setIsSyncing(true); await API.about.updateConfig(u); fetchData(); setIsSyncing(false); }} />}
-              {activeTab === 'footer' && <FooterEditorTab config={footerSetup} onSubmit={handleUpdateFooterConfig} isSyncing={isSyncing} />}
-              {activeTab === 'spiritual' && <SpiritualHubTab />}
-              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => setShowModal('member')} onEditMember={(m) => {setEditingItem(m); setShowModal('member');}} onDeleteMember={(id) => commitWipe('members', id)} onToggleAdmin={(m) => {setEditingItem(m); setShowModal('member');}} currentUser={currentUser} canManage={rolePermissions.canManageMembers} />}
-              {activeTab === 'content' && <NewsFeedTab news={news} onNew={() => setShowModal('news')} onEdit={(item) => { setEditingItem(item); setShowModal('news'); }} onDelete={(id) => commitWipe('news', id)} />}
-              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => setShowModal('ann')} onEdit={(a) => {setEditingItem(a); setShowModal('ann');}} onDelete={(id) => commitWipe('announcements', id)} canManage={rolePermissions.canManageBulletins} />}
-              {activeTab === 'depts' && <MinistriesTab departments={depts} onNew={() => setShowModal('dept')} onEdit={(d) => {setEditingItem(d); setShowModal('dept');}} onDelete={(id) => commitWipe('departments', id)} />}
-              {activeTab === 'leaders' && <LeadershipTab leaders={leaders} onNew={() => setShowModal('leader')} onEdit={(l) => {setEditingItem(l); setShowModal('leader');}} onDelete={(id) => commitWipe('leaders', id)} />}
-              {activeTab === 'donations' && <DonationTab user={currentUser} />}
-              {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={(id) => API.contacts.markRead(id)} onMarkAllRead={() => API.contacts.markAllRead()} onDelete={(id) => API.contacts.delete(id)} />}
+              {activeTab === 'profile' && currentUser && <ProfileEditorTab user={currentUser} isSyncing={isSyncing} onUpdate={async (u) => { setIsSyncing(true); await API.members.update(u.id, u); updateUser(u); fetchData(); setIsSyncing(false); }} />}
+              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => { setEditingItem(null); setShowModal('member'); }} onEditMember={(m) => { setEditingItem(m); setShowModal('member'); }} onDeleteMember={(id) => handleDelete('members', id)} onToggleAdmin={(m) => { setEditingItem(m); setShowModal('role'); }} currentUser={currentUser!} canManage={rolePermissions.canManageRoles} />}
+              {activeTab === 'donations' && <DonationTab user={currentUser!} />}
+              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => { setEditingItem(null); setShowModal('ann'); }} onEdit={(a) => { setEditingItem(a); setShowModal('ann'); }} onDelete={(id) => handleDelete('ann', id)} onToggleStatus={handleUpdateAnnStatus} canManage={rolePermissions.canManageContent} />}
+              {activeTab === 'depts' && <MinistriesTab departments={depts} onNew={() => { setEditingItem(null); setShowModal('dept'); }} onEdit={(d) => { setEditingItem(d); setShowModal('dept'); }} onDelete={(id) => handleDelete('dept', id)} />}
+              {activeTab === 'leaders' && <LeadershipTab leaders={leaders} onNew={() => { setEditingItem(null); setShowModal('leader'); }} onEdit={(l) => { setEditingItem(l); setShowModal('leader'); }} onDelete={(id) => handleDelete('leaders', id)} />}
+              {activeTab === 'content' && <NewsFeedTab news={news} onNew={() => { setEditingItem(null); setShowModal('news'); }} onEdit={(item) => { setEditingItem(item); setShowModal('news'); }} onDelete={(id) => handleDelete('news', id)} />}
+              {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={(id) => { API.contacts.markRead(id).then(fetchData); }} onMarkAllRead={() => { API.contacts.markAllRead().then(fetchData); }} onDelete={(id) => handleDelete('contact', id)} />}
               {activeTab === 'system' && <SystemTab dbHealth={dbHealth} logs={logs} onResetDB={() => isIT && API.system.resetDB()} />}
+              {activeTab === 'home' && <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
+              {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (updates) => { setIsSyncing(true); await API.about.updateConfig(updates); await fetchData(); setIsSyncing(false); }} />}
+              {activeTab === 'footer' && <FooterEditorTab config={footerSetup} onSubmit={async (conf) => { setIsSyncing(true); await API.footer.updateConfig(conf); await fetchData(); setIsSyncing(false); }} isSyncing={isSyncing} />}
+              {activeTab === 'spiritual' && <SpiritualHubTab />}
             </AnimatePresence>
           </main>
         </div>
@@ -306,47 +245,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <AnimatePresence>
         {showModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-2xl rounded-[3rem] shadow-3xl flex flex-col max-h-[90vh] overflow-hidden border border-white/20">
-              <div className="px-10 pt-10 pb-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                <h2 className="text-3xl font-black font-serif italic text-gray-900">{editingItem ? 'Refine' : 'Initialize'} Record</h2>
-                <button onClick={() => { setShowModal(null); setEditingItem(null); setFilePreview(null); }} className="p-4 bg-white text-gray-400 rounded-2xl hover:text-red-500 border border-gray-100 shadow-sm transition-all"><Plus size={20} className="rotate-45" /></button>
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white w-full max-w-2xl rounded-[3rem] shadow-3xl overflow-hidden border border-white flex flex-col max-h-[90vh]">
+              <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                <h3 className="text-2xl font-black font-serif italic text-gray-900">
+                  {showModal === 'role' ? 'Clearance Protocol' : editingItem ? 'Refine Sequence' : 'Initialize Module'}
+                </h3>
+                <button onClick={() => { setShowModal(null); setEditingItem(null); setFilePreview(null); setUrlInput(''); }} className="p-3 bg-white border border-gray-100 text-gray-400 rounded-2xl hover:text-red-500 transition-all"><X size={20}/></button>
               </div>
-              <div className="flex-grow overflow-y-auto p-10 scroll-hide">
-                {showModal === 'news' && <NewsForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
+              <div className="flex-grow overflow-y-auto p-12 scroll-hide">
                 {showModal === 'ann' && <AnnouncementForm editingItem={editingItem} onSubmit={handleSave} />}
                 {showModal === 'dept' && <DepartmentForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
                 {showModal === 'leader' && <LeaderForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} isSyncing={isSyncing} />}
-                {showModal === 'member' && (
-                  <form id="main-editor-form" onSubmit={handleSave} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2 space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Full Name</label><input name="fullName" defaultValue={editingItem?.fullName} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Email</label><input name="email" defaultValue={editingItem?.email} required type="email" className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
-                      <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase ml-4">Phone</label><input name="phone" defaultValue={editingItem?.phone} required className="w-full px-5 py-3 bg-gray-50 rounded-xl font-bold text-sm border-0 outline-none" /></div>
-                      
-                      <div className="col-span-2 p-6 rounded-[2rem] border bg-cyan-50/50 border-cyan-100">
-                        <label className="text-[10px] font-black text-gray-800 uppercase flex items-center gap-2 mb-3">Authority Permissions</label>
-                        <select name="role" defaultValue={editingItem?.role || 'member'} className="w-full px-5 py-4 bg-white rounded-2xl font-black text-xs border border-cyan-100 outline-none">
-                          <option value="member">Normal Member</option>
-                          <option value="executive">Executive Committee</option>
-                          <option value="accountant">Financial Accountant</option>
-                          <option value="secretary">Secretariat</option>
-                          <option value="admin">Global Administrator</option>
-                          <option value="it">IT Super Master</option>
-                        </select>
-                      </div>
-                    </div>
-                  </form>
-                )}
+                {showModal === 'news' && <NewsForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
+                {showModal === 'role' && <RoleEditorForm member={editingItem} onConfirm={handleUpdateRole} isSyncing={isSyncing} />}
+                {showModal === 'member' && <MemberEditorForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
               </div>
-              <div className="p-10 border-t border-gray-50 flex gap-4 bg-gray-50/50">
-                <button type="button" onClick={() => { setShowModal(null); setEditingItem(null); }} className="flex-grow py-5 bg-white border border-gray-200 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard</button>
-                <button disabled={isSyncing} form="main-editor-form" type="submit" className="flex-[2] py-5 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 active:scale-95 hover:bg-cyan-600 transition-all">
-                  {isSyncing ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />} Commit Sequential Change
-                </button>
-              </div>
+              {showModal !== 'role' && (
+                <div className="p-10 border-t border-gray-50 bg-gray-50/30 flex justify-end gap-4">
+                  <button onClick={() => { setShowModal(null); setEditingItem(null); setFilePreview(null); setUrlInput(''); }} className="px-8 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest">Discard</button>
+                  <button form="main-editor-form" type="submit" className="px-12 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 hover:bg-cyan-600 transition-all"><Save size={16}/> Commit Changes</button>
+                </div>
+              )}
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

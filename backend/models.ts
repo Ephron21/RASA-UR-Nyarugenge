@@ -1,4 +1,3 @@
-
 import mongoose, { Schema } from 'mongoose';
 
 // SPIRITUAL HUB MODELS
@@ -173,6 +172,21 @@ const AboutConfigSchema = new Schema({
   timeline: [{ id: String, year: String, title: String, description: String }]
 });
 
+// Added FooterConfigSchema to match the expected structure in the frontend and types
+const FooterConfigSchema = new Schema({
+  description: String,
+  facebookUrl: String,
+  twitterUrl: String,
+  instagramUrl: String,
+  linkedinUrl: String,
+  youtubeUrl: String,
+  whatsappUrl: String,
+  tiktokUrl: String,
+  address: String,
+  phone: String,
+  email: String
+});
+
 const MemberSchema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -210,4 +224,6 @@ export const DonationProject = mongoose.model('DonationProject', DonationProject
 export const ContactMessage = mongoose.model('ContactMessage', ContactMessageSchema);
 export const HomeConfig = mongoose.model('HomeConfig', HomeConfigSchema);
 export const AboutConfig = mongoose.model('AboutConfig', AboutConfigSchema);
+// Exporting FooterConfig to fix compilation error in server.ts
+export const FooterConfig = mongoose.model('FooterConfig', FooterConfigSchema);
 export const Member = mongoose.model('Member', MemberSchema);

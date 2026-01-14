@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib } from 'framer-motion';
+const motion = motionLib as any;
 import { Search, UserPlus, Shield, Edit, Trash2, FileText, Download, Loader2, ShieldAlert } from 'lucide-react';
 import { User } from '../../types';
 
@@ -85,7 +87,7 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
               Generate Global Report
             </button>
           )}
-          {canManage ? (
+          {isIT ? (
             <button onClick={onNewMember} className="flex-grow lg:flex-none px-8 py-4 bg-cyan-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:bg-cyan-600 transition-all active:scale-95">
               <UserPlus size={16} /> New Member
             </button>
@@ -154,9 +156,13 @@ const DirectoryTab: React.FC<DirectoryTabProps> = ({
                   {canManage && (
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-2.5 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                        <button onClick={() => onToggleAdmin(m)} className="p-3 bg-white border border-gray-100 text-cyan-500 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm" title="Modify Clearance"><Shield size={16}/></button>
+                        {isIT && (
+                          <button onClick={() => onToggleAdmin(m)} className="p-3 bg-white border border-gray-100 text-cyan-500 rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-sm" title="Modify Clearance Protocol"><Shield size={16}/></button>
+                        )}
                         <button onClick={() => onEditMember(m)} className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:bg-gray-900 hover:text-white transition-all shadow-sm"><Edit size={16}/></button>
-                        <button onClick={() => onDeleteMember(m.id)} className="p-3 bg-red-50 border border-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                        {isIT && (
+                          <button onClick={() => onDeleteMember(m.id)} className="p-3 bg-red-50 border border-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                        )}
                       </div>
                     </td>
                   )}

@@ -1,7 +1,8 @@
-
 import React, { useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// Fix framer-motion prop errors by casting motion to any
+import { motion as motionLib } from 'framer-motion';
+const motion = motionLib as any;
 import { 
   Calendar, User, ArrowLeft, Play, 
   Clock, Share2, Bookmark, MessageSquare,
