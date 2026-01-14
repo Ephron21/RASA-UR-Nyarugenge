@@ -6,10 +6,11 @@ import {
   LayoutDashboard, Home as HomeIcon, Heart, 
   MessageSquare, Briefcase, Bell, HardDrive, 
   History, Shield, Loader2, Database, Search, Sparkles, User as UserIcon, Settings,
-  Type, X, Save
+  Type, X, Save, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig, FooterConfig, DailyVerse, BibleQuiz, Donation, Role } from '../types';
+import { useNotification } from '../contexts/NotificationContext';
+import { User, NewsItem, Leader, Announcement, Department, ContactMessage, HomeConfig, AboutConfig, FooterConfig, RoleDefinition } from '../types';
 import { API } from '../services/api';
 
 // Tab Components
@@ -27,6 +28,7 @@ import SystemTab from '../components/admin/SystemTab';
 import SpiritualHubTab from '../components/admin/SpiritualHubTab';
 import ProfileEditorTab from '../components/admin/ProfileEditorTab';
 import FooterEditorTab from '../components/admin/FooterEditorTab';
+import ClearanceTab from '../components/admin/ClearanceTab';
 
 // Modal Forms
 import NewsForm from '../components/admin/NewsForm';
@@ -55,6 +57,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateNews, onUpdateLeaders, onUpdateMembers, onUpdateAnnouncements, onUpdateDepartments, onUpdateFooter
 }) => {
   const { user: currentUser, updateUser } = useAuth();
+  const { notify } = useNotification();
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isSyncing, setIsSyncing] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
@@ -63,6 +66,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [homeSetup, setHomeSetup] = useState<HomeConfig | null>(null);
   const [aboutSetup, setAboutSetup] = useState<AboutConfig | null>(null);
   const [footerSetup, setFooterSetup] = useState<FooterConfig | null>(null);
+  const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal Control
@@ -71,25 +75,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
 
-  const isIT = currentUser?.role === 'it';
-  const isAccountant = currentUser?.role === 'accountant';
-  const isExcom = currentUser?.role === 'executive' || currentUser?.role === 'admin';
-  const isDeptLeader = currentUser?.role === 'secretary'; 
+  // Fetch roles and all other data
+  const fetchData = async () => {
+    try {
+      const [c, h, a, health, l, f, an, de, lea, ne, me, roles] = await Promise.all([
+        API.contacts.getAll(), API.home.getConfig(), API.about.getConfig(), API.system.getHealth(), 
+        API.system.getLogs(), API.footer.getConfig(), API.announcements.getAll(),
+        API.departments.getAll(), API.leaders.getAll(), API.news.getAll(), API.members.getAll(),
+        API.roles.getAll()
+      ]);
+      setContactMsgs(c); setHomeSetup(h); setAboutSetup(a); setDbHealth(health); setLogs(l); setFooterSetup(f);
+      setRoleDefinitions(roles);
+      onUpdateAnnouncements(an); onUpdateDepartments(de); onUpdateLeaders(lea); onUpdateNews(ne); onUpdateMembers(me);
+      if (f) onUpdateFooter(f);
+    } catch (e) { console.error("Admin Fetch Error:", e); }
+  };
+
+  useEffect(() => { fetchData(); }, [activeTab]);
+
+  // Calculated Permissions based on the specific Role Definition
+  const currentRoleDef = useMemo(() => 
+    roleDefinitions.find(r => r.id === currentUser?.role), 
+  [roleDefinitions, currentUser?.role]);
 
   const rolePermissions = useMemo(() => ({
     canViewTab: (tabId: string) => {
-      if (isIT) return true;
-      if (isAccountant) return ['overview', 'profile', 'donations'].includes(tabId);
-      if (isDeptLeader) return ['overview', 'profile', 'content', 'bulletin'].includes(tabId);
-      if (isExcom) return ['overview', 'profile', 'home', 'about', 'footer', 'spiritual', 'members', 'content', 'bulletin', 'depts', 'leaders', 'donations', 'contacts'].includes(tabId);
-      return ['overview', 'profile'].includes(tabId);
+      if (!currentRoleDef) return false;
+      return currentRoleDef.permissions.includes(`tab.${tabId}`);
     },
-    canManageRoles: isIT,
-    canManageFinance: isAccountant || isIT,
-    canPurgeFinance: isIT,
-    canManageSystem: isIT,
-    canManageContent: isIT || isExcom || isDeptLeader
-  }), [currentUser?.role, isIT, isAccountant, isExcom, isDeptLeader]);
+    canDo: (actionKey: string) => {
+      if (!currentRoleDef) return false;
+      return currentRoleDef.permissions.includes(`action.${actionKey}`);
+    }
+  }), [currentRoleDef]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -99,6 +117,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'footer', label: 'Footer Editor', icon: Type },
     { id: 'spiritual', label: 'Spiritual Hub', icon: Sparkles },
     { id: 'members', label: 'Directory', icon: Users },
+    { id: 'clearance', label: 'Clearance Architect', icon: ShieldCheck },
     { id: 'content', label: 'News Feed', icon: Newspaper },
     { id: 'bulletin', label: 'Bulletin', icon: Bell },
     { id: 'depts', label: 'Ministries', icon: Briefcase },
@@ -107,21 +126,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'contacts', label: 'Inbox', icon: MessageSquare },
     { id: 'system', label: 'System', icon: HardDrive },
   ].filter(t => rolePermissions.canViewTab(t.id));
-
-  const fetchData = async () => {
-    try {
-      const [c, h, a, health, l, f, an, de, lea, ne, me] = await Promise.all([
-        API.contacts.getAll(), API.home.getConfig(), API.about.getConfig(), API.system.getHealth(), 
-        API.system.getLogs(), API.footer.getConfig(), API.announcements.getAll(),
-        API.departments.getAll(), API.leaders.getAll(), API.news.getAll(), API.members.getAll()
-      ]);
-      setContactMsgs(c); setHomeSetup(h); setAboutSetup(a); setDbHealth(health); setLogs(l); setFooterSetup(f);
-      onUpdateAnnouncements(an); onUpdateDepartments(de); onUpdateLeaders(lea); onUpdateNews(ne); onUpdateMembers(me);
-      if (f) onUpdateFooter(f);
-    } catch (e) { console.error("Admin Fetch Error:", e); }
-  };
-
-  useEffect(() => { fetchData(); }, [activeTab]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,7 +136,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const handleUpdateRole = async (role: Role) => {
+  const handleUpdateRole = async (role: string) => {
     if (!editingItem) return;
     setIsSyncing(true);
     try {
@@ -140,6 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await fetchData();
       setShowModal(null);
       setEditingItem(null);
+      notify("Clearance Migration", `Tier protocols for ${editingItem.fullName} have been successfully updated. Thank you for your leadership.`, "divine");
     } finally { setIsSyncing(false); }
   };
 
@@ -148,6 +153,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       await API.announcements.update(id, { isActive: active });
       await fetchData();
+      notify("Bulletin Pulse", `Announcement status toggled to ${active ? 'Live' : 'Draft'}. Stewardship synchronized.`, "success");
     } finally { setIsSyncing(false); }
   };
 
@@ -159,29 +165,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const media = filePreview || urlInput || editingItem?.image || editingItem?.mediaUrl || editingItem?.profileImage;
 
     try {
+      let notifyTitle = "Sequence Committed";
+      let notifyMsg = "The Kernel has successfully synchronized your administrative changes.";
+
       if (showModal === 'ann') {
         const item = { title: formData.get('title') as string, content: formData.get('content') as string, status: formData.get('status') as any, color: formData.get('color') as string, isActive: form.querySelector<HTMLInputElement>('[name="isActive"]')?.checked ?? true, date: editingItem?.date || new Date().toISOString().split('T')[0] };
         if (editingItem) await API.announcements.update(editingItem.id, item); else await API.announcements.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        notifyTitle = "Bulletin Broadcast"; notifyMsg = "Your message has been uploaded to the association's pulse. Thank you for the update.";
       } else if (showModal === 'dept') {
         const item = { name: formData.get('name') as string, description: formData.get('description') as string, details: formData.get('details') as string, icon: formData.get('icon') as string, category: formData.get('category') as string, activities: (formData.get('activities') as string).split(',').map(s => s.trim()), image: media };
         if (editingItem) await API.departments.update(editingItem.id, item); else await API.departments.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        notifyTitle = "Ministry Refinement"; notifyMsg = `The ${item.name} department parameters are now synced globally. Stewardship verified.`;
       } else if (showModal === 'leader') {
         const item = { name: formData.get('name') as string, position: formData.get('position') as string, phone: formData.get('phone') as string, academicYear: formData.get('academicYear') as string, image: media, type: formData.get('type') as any };
         if (editingItem) await API.leaders.update(editingItem.id, item); else await API.leaders.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        notifyTitle = "Council Update"; notifyMsg = `${item.name}'s leadership record has been updated. The heritage flows through you.`;
       } else if (showModal === 'news') {
         const item = { title: formData.get('title') as string, content: formData.get('content') as string, category: formData.get('category') as any, mediaUrl: media, mediaType: formData.get('mediaType') as any, author: currentUser?.fullName || 'Admin', date: editingItem?.date || new Date().toISOString().split('T')[0] };
         if (editingItem) await API.news.update(editingItem.id, item); else await API.news.create({ ...item, id: Math.random().toString(36).substr(2, 9) } as any);
+        notifyTitle = "Story Published"; notifyMsg = "The digital archive is richer with your contribution. Thank you for documenting the vision.";
       } else if (showModal === 'member') {
         const item = { fullName: formData.get('fullName') as string, email: formData.get('email') as string, phone: formData.get('phone') as string, program: formData.get('program') as string, level: formData.get('level') as string, diocese: formData.get('diocese') as string, department: formData.get('department') as string, profileImage: media };
         if (editingItem) await API.members.update(editingItem.id, item);
+        notifyTitle = "Registry Synced"; notifyMsg = `Identity sequence for ${item.fullName} has been refined. Integrity confirmed.`;
+      } else if (!showModal && activeTab === 'home') {
+        const updates: Partial<HomeConfig> = {
+          heroTitle: formData.get('heroTitle') as string,
+          heroSubtitle: formData.get('heroSubtitle') as string,
+          heroImageUrl: urlInput || filePreview || homeSetup?.heroImageUrl || '',
+          motto: formData.get('motto') as string,
+          aboutTitle: formData.get('aboutTitle') as string,
+          aboutText: formData.get('aboutText') as string,
+          aboutImageUrl: (form.querySelector<HTMLInputElement>('[name="aboutImageUrl_hidden"]')?.value) || homeSetup?.aboutImageUrl || '',
+          aboutScripture: formData.get('aboutScripture') as string,
+          aboutScriptureRef: formData.get('aboutScriptureRef') as string,
+          stat1Value: formData.get('stat1Value') as string,
+          stat1Label: formData.get('stat1Label') as string,
+          stat2Value: formData.get('stat2Value') as string,
+          stat2Label: formData.get('stat2Label') as string,
+        };
+        await API.home.updateConfig(updates);
+        notifyTitle = "Portal Re-Imagined"; notifyMsg = "The Landing Nexus has been updated with your new vision. Excellence recorded.";
       }
+      
       await fetchData();
       setShowModal(null); setEditingItem(null); setFilePreview(null); setUrlInput('');
+      notify(notifyTitle, notifyMsg, "divine");
     } finally { setIsSyncing(false); }
   };
 
   const handleDelete = async (collection: string, id: string) => {
-    if (!window.confirm('Purge from MongoDB permanently?')) return;
+    if (!window.confirm('Purge from Kernel permanently?')) return;
     setIsSyncing(true);
     try {
       if (collection === 'ann') await API.announcements.delete(id);
@@ -190,6 +224,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       else if (collection === 'leaders') await API.leaders.delete(id);
       else if (collection === 'members') await API.members.delete(id);
       await fetchData();
+      notify("Archive Purged", "The selected record has been successfully de-linked from the divine repository.", "success");
     } finally { setIsSyncing(false); }
   };
 
@@ -210,7 +245,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="bg-white p-4 rounded-[2.5rem] shadow-sm border border-gray-100 sticky top-28">
               <div className="flex items-center gap-3 ml-4 mb-8 pt-4">
                 <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-lg"><Shield size={20} className="text-cyan-400" /></div>
-                <div><p className="text-[9px] font-black uppercase text-gray-400 mb-1">Clearance</p><p className="text-xs font-black text-gray-900 uppercase">{currentUser?.role}</p></div>
+                <div><p className="text-[9px] font-black uppercase text-gray-400 mb-1">Clearance</p><p className="text-xs font-black text-gray-900 uppercase">{currentRoleDef?.label || currentUser?.role}</p></div>
               </div>
               <div className="space-y-1">
                 {tabs.map(tab => (
@@ -225,18 +260,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <main className="flex-grow min-w-0">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && <OverviewTab members={members} news={news} leaders={leaders} announcements={announcements} contactMsgs={contactMsgs} depts={depts} logs={logs} />}
-              {activeTab === 'profile' && currentUser && <ProfileEditorTab user={currentUser} isSyncing={isSyncing} onUpdate={async (u) => { setIsSyncing(true); await API.members.update(u.id, u); updateUser(u); fetchData(); setIsSyncing(false); }} />}
-              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => { setEditingItem(null); setShowModal('member'); }} onEditMember={(m) => { setEditingItem(m); setShowModal('member'); }} onDeleteMember={(id) => handleDelete('members', id)} onToggleAdmin={(m) => { setEditingItem(m); setShowModal('role'); }} currentUser={currentUser!} canManage={rolePermissions.canManageRoles} />}
+              {activeTab === 'profile' && currentUser && <ProfileEditorTab user={currentUser} isSyncing={isSyncing} onUpdate={async (u) => { setIsSyncing(true); await API.members.update(u.id, u); updateUser(u); fetchData(); setIsSyncing(false); notify("Stewardship Updated", "Your administrative profile pulse has been successfully synchronized.", "success"); }} />}
+              {activeTab === 'members' && <DirectoryTab members={members} searchTerm={searchTerm} onSearchChange={setSearchTerm} onNewMember={() => { setEditingItem(null); setShowModal('member'); }} onEditMember={(m) => { setEditingItem(m); setShowModal('member'); }} onDeleteMember={(id) => handleDelete('members', id)} onToggleAdmin={(m) => { setEditingItem(m); setShowModal('role'); }} currentUser={currentUser!} canManage={rolePermissions.canDo('manage_roles')} />}
+              {activeTab === 'clearance' && <ClearanceTab roles={roleDefinitions} onRefresh={fetchData} />}
               {activeTab === 'donations' && <DonationTab user={currentUser!} />}
-              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => { setEditingItem(null); setShowModal('ann'); }} onEdit={(a) => { setEditingItem(a); setShowModal('ann'); }} onDelete={(id) => handleDelete('ann', id)} onToggleStatus={handleUpdateAnnStatus} canManage={rolePermissions.canManageContent} />}
+              {activeTab === 'bulletin' && <BulletinTab announcements={announcements} onNew={() => { setEditingItem(null); setShowModal('ann'); }} onEdit={(a) => { setEditingItem(a); setShowModal('ann'); }} onDelete={(id) => handleDelete('ann', id)} onToggleStatus={handleUpdateAnnStatus} canManage={rolePermissions.canViewTab('bulletin')} />}
               {activeTab === 'depts' && <MinistriesTab departments={depts} onNew={() => { setEditingItem(null); setShowModal('dept'); }} onEdit={(d) => { setEditingItem(d); setShowModal('dept'); }} onDelete={(id) => handleDelete('dept', id)} />}
               {activeTab === 'leaders' && <LeadershipTab leaders={leaders} onNew={() => { setEditingItem(null); setShowModal('leader'); }} onEdit={(l) => { setEditingItem(l); setShowModal('leader'); }} onDelete={(id) => handleDelete('leaders', id)} />}
               {activeTab === 'content' && <NewsFeedTab news={news} onNew={() => { setEditingItem(null); setShowModal('news'); }} onEdit={(item) => { setEditingItem(item); setShowModal('news'); }} onDelete={(id) => handleDelete('news', id)} />}
               {activeTab === 'contacts' && <InboxTab contactMsgs={contactMsgs} onMarkRead={(id) => { API.contacts.markRead(id).then(fetchData); }} onMarkAllRead={() => { API.contacts.markAllRead().then(fetchData); }} onDelete={(id) => handleDelete('contact', id)} />}
-              {activeTab === 'system' && <SystemTab dbHealth={dbHealth} logs={logs} onResetDB={() => isIT && API.system.resetDB()} />}
+              {activeTab === 'system' && <SystemTab dbHealth={dbHealth} logs={logs} onResetDB={() => rolePermissions.canDo('reset_db') && API.system.resetDB()} />}
               {activeTab === 'home' && <HomeEditorTab homeSetup={homeSetup} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
-              {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (updates) => { setIsSyncing(true); await API.about.updateConfig(updates); await fetchData(); setIsSyncing(false); }} />}
-              {activeTab === 'footer' && <FooterEditorTab config={footerSetup} onSubmit={async (conf) => { setIsSyncing(true); await API.footer.updateConfig(conf); await fetchData(); setIsSyncing(false); }} isSyncing={isSyncing} />}
+              {activeTab === 'about' && <AboutEditorTab config={aboutSetup} isSyncing={isSyncing} onSubmit={async (updates) => { setIsSyncing(true); await API.about.updateConfig(updates); await fetchData(); setIsSyncing(false); notify("Heritage Synchronized", "The historical archives have been updated with your new narrative. Heritage documented.", "divine"); }} />}
+              {activeTab === 'footer' && <FooterEditorTab config={footerSetup} onSubmit={async (conf) => { setIsSyncing(true); await API.footer.updateConfig(conf); await fetchData(); setIsSyncing(false); notify("Nexus Reach Points", "Platform connectivity settings and footer bio have been synchronized. Thank you.", "success"); }} isSyncing={isSyncing} />}
               {activeTab === 'spiritual' && <SpiritualHubTab />}
             </AnimatePresence>
           </main>
@@ -258,7 +294,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {showModal === 'dept' && <DepartmentForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
                 {showModal === 'leader' && <LeaderForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} isSyncing={isSyncing} />}
                 {showModal === 'news' && <NewsForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
-                {showModal === 'role' && <RoleEditorForm member={editingItem} onConfirm={handleUpdateRole} isSyncing={isSyncing} />}
+                {showModal === 'role' && <RoleEditorForm member={editingItem} roles={roleDefinitions} onConfirm={handleUpdateRole} isSyncing={isSyncing} />}
                 {showModal === 'member' && <MemberEditorForm editingItem={editingItem} filePreview={filePreview} urlInput={urlInput} onFileChange={handleFileChange} onUrlChange={setUrlInput} onSubmit={handleSave} />}
               </div>
               {showModal !== 'role' && (

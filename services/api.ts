@@ -2,7 +2,7 @@
 import { 
   User, NewsItem, Leader, Announcement, Department, DepartmentInterest, ContactMessage, 
   HomeConfig, Donation, DonationProject, AboutConfig, FooterConfig,
-  DailyVerse, VerseReflection, BibleQuiz, QuizResult
+  DailyVerse, VerseReflection, BibleQuiz, QuizResult, RoleDefinition
 } from '../types';
 import { db } from './db';
 
@@ -25,19 +25,19 @@ const hybridFetch = async (
     
     if (!res.ok) {
       if (fallbackAction) {
-        console.warn(`[RASA API] Server Error (${res.status}). Using LocalStorage Fallback.`);
+        console.warn(`[RASA API] Server Response Error (${res.status}) for ${endpoint}. Failover to LocalStorage.`);
         return await fallbackAction();
       }
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `Server Error: ${res.status}`);
+      throw new Error(errorData.error || `Kernel Error: ${res.status}`);
     }
     
     const data = await res.json();
-    console.log(`%c[RASA KERNEL] SYNCED: ${endpoint} (Local MongoDB)`, "color: #06b6d4; font-weight: bold;");
+    console.log(`%c[RASA KERNEL] SYNCHRONIZED: ${endpoint}`, "color: #06b6d4; font-weight: bold; background: #ecfeff; padding: 2px 5px; border-radius: 4px;");
     return data;
   } catch (err: any) {
     if (fallbackAction) {
-      console.warn(`[RASA API] Backend Unreachable at ${API_BASE_URL}. Data served from Browser LocalStorage.`);
+      console.warn(`[RASA API] Kernel Offline (${API_BASE_URL}). Using browser persistence layer.`);
       return await fallbackAction();
     }
     throw err;
@@ -51,6 +51,12 @@ export const API = {
     update: (id: string, updates: Partial<User>) => hybridFetch(`members/${id}`, 'PUT', updates, () => db.update('members', id, updates)),
     delete: (id: string) => hybridFetch(`members/${id}`, 'DELETE', null, () => db.delete('members', id)),
     updateRole: (id: string, role: string) => hybridFetch(`members/${id}/role`, 'PATCH', { role }, () => db.update('members', id, { role }))
+  },
+  roles: {
+    getAll: () => hybridFetch('roles', 'GET', null, () => db.getCollection('roles')),
+    create: (item: RoleDefinition) => hybridFetch('roles', 'POST', item, () => db.insert('roles', item)),
+    update: (id: string, updates: Partial<RoleDefinition>) => hybridFetch(`roles/${id}`, 'PUT', updates, () => db.update('roles', id, updates)),
+    delete: (id: string) => hybridFetch(`roles/${id}`, 'DELETE', null, () => db.delete('roles', id))
   },
   auth: {
     requestOTP: (email: string) => hybridFetch('auth/otp', 'POST', { email }, () => db.generateOTP(email)),

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 // Fix framer-motion prop errors by casting motion to any
 import { motion as motionLib, AnimatePresence } from 'framer-motion';
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Announcement, DailyVerse, BibleQuiz, QuizResult } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { API } from '../services/api';
 
 interface MemberDashboardProps {
@@ -17,6 +19,7 @@ interface MemberDashboardProps {
 
 const MemberDashboard: React.FC<MemberDashboardProps> = ({ announcements }) => {
   const { user: currentUser, updateUser } = useAuth();
+  const { notify } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -48,6 +51,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ announcements }) => {
       await API.members.update(currentUser.id, updates);
       updateUser({ ...currentUser, ...updates });
       setIsEditing(false);
+      notify("Identity Synchronized", "Your membership pulse has been successfully updated in the Kernel. Thank you.", "success");
     } finally { setIsSaving(false); }
   };
 
@@ -71,7 +75,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ announcements }) => {
     try {
       await API.spiritual.quizzes.submitResult(result);
       setQuizResult(result);
-      updateUser({ ...currentUser, spiritPoints: (currentUser.spiritPoints || 0) + Math.floor((score/result.total)*100) });
+      const earnedPoints = Math.floor((score/result.total)*100);
+      updateUser({ ...currentUser, spiritPoints: (currentUser.spiritPoints || 0) + earnedPoints });
+      notify("Quest Complete", `Congratulations! You earned ${earnedPoints} Spirit Points. May the word dwell in you richly.`, "divine");
     } finally { setIsSubmittingQuiz(false); }
   };
 
@@ -125,7 +131,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ announcements }) => {
                          </div>
                          <h5 className="text-xl font-black text-gray-900 mb-2">{q.title}</h5>
                          <p className="text-sm text-gray-500 mb-6 italic line-clamp-2">"{q.description}"</p>
-                         <button onClick={() => setActiveQuiz(q)} className="w-full py-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest group-hover:bg-cyan-500 group-hover:text-white transition-all">Begin Initiation</button>
+                         <button onClick={() => setActiveQuiz(q)} className="w-full py-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest group-hover:bg-cyan-50 group-hover:text-white transition-all">Begin Initiation</button>
                       </div>
                     ))}
                  </div>

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 // Fix framer-motion prop errors by casting motion to any
 import { motion as motionLib, AnimatePresence } from 'framer-motion';
 const motion = motionLib as any;
-import { Sparkles, ArrowUpRight, Zap, Target, Heart } from 'lucide-react';
+import { Sparkles, ArrowUpRight, Zap, Target, Heart, Loader2 } from 'lucide-react';
 import { NewsItem, Leader, HomeConfig } from '../types';
 import { API } from '../services/api';
 
@@ -28,20 +29,38 @@ const PULSE_MSGS = [
 
 const Home: React.FC<HomeProps> = ({ news, leaders }) => {
   const [config, setConfig] = useState<HomeConfig | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [pulseIdx, setPulseIdx] = useState(0);
   
   useEffect(() => {
-    API.home.getConfig().then(setConfig);
+    const fetchHomeData = async () => {
+      setIsLoading(true);
+      try {
+        const data = await API.home.getConfig();
+        setConfig(data);
+      } catch (err) {
+        console.error("Home Sync Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHomeData();
+
     const interval = setInterval(() => {
       setPulseIdx(prev => (prev + 1) % PULSE_MSGS.length);
     }, 4000);
+
     return () => clearInterval(interval);
   }, []);
 
-  if (!config) {
+  if (isLoading || !config) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#020617] space-y-4">
+        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+          <Loader2 className="text-cyan-500" size={48} />
+        </motion.div>
+        <p className="font-black text-[10px] uppercase tracking-[0.4em] text-cyan-500/50">Synchronizing Divine Pulse...</p>
       </div>
     );
   }
@@ -49,12 +68,16 @@ const Home: React.FC<HomeProps> = ({ news, leaders }) => {
   const ActiveIcon = PULSE_MSGS[pulseIdx].icon;
 
   return (
-    <div className="w-full">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }}
+      className="w-full"
+    >
       {/* Hero Section */}
       <Hero config={config} />
 
       {/* Dynamic Spiritual Pulse Banner */}
-      <div className="bg-gray-900 border-y border-white/5 py-4 overflow-hidden">
+      <div className="bg-gray-900 border-y border-white/5 py-4 overflow-hidden relative">
         <div className="max-container px-4 flex items-center justify-center">
            <AnimatePresence mode="wait">
              <motion.div 
@@ -85,7 +108,7 @@ const Home: React.FC<HomeProps> = ({ news, leaders }) => {
 
       {/* Leadership Showcase */}
       <Leadership leaders={leaders} />
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,5 +1,5 @@
 
-export type Role = 'member' | 'admin' | 'executive' | 'accountant' | 'secretary' | 'it' | 'guest';
+export type Role = string; // Now dynamic, refers to RoleDefinition.id
 
 export interface User {
   id: string;
@@ -16,6 +16,22 @@ export interface User {
   spiritPoints?: number;
 }
 
+export interface Permission {
+  key: string;
+  label: string;
+  category: 'General' | 'Content' | 'Finance' | 'Users' | 'System' | 'Spiritual' | 'Communication';
+}
+
+export interface RoleDefinition {
+  id: string; // The unique identifier (e.g., 'it', 'intern')
+  label: string;
+  icon: string;
+  description: string;
+  permissions: string[]; // Array of Permission.key
+  isSystem?: boolean; // Cannot be deleted
+}
+
+// ... existing interfaces remain unchanged ...
 export interface NewsItem {
   id: string;
   title: string;
@@ -120,7 +136,6 @@ export interface VerseReflection {
   timestamp: string;
 }
 
-// Fixed missing QuizQuestion interface definition
 export interface QuizQuestion {
   id: string;
   text: string;

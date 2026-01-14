@@ -117,8 +117,8 @@ const About: React.FC = () => {
               return (
                 <motion.div key={v.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="group p-12 bg-white rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all text-center space-y-6">
                   <div className="w-16 h-16 bg-cyan-50 text-cyan-500 rounded-2xl flex items-center justify-center mx-auto group-hover:bg-cyan-500 group-hover:text-white transition-all"><Icon size={28}/></div>
-                  <h4 className="text-2xl font-black text-gray-900">{v.title}</h4>
-                  <p className="text-gray-500 leading-relaxed">{v.description}</p>
+                  <h4 className="text-2xl font-black text-gray-900 tracking-tight">{v.title}</h4>
+                  <p className="text-gray-500 leading-relaxed font-medium">{v.description}</p>
                 </motion.div>
               );
             })}

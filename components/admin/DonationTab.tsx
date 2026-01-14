@@ -21,7 +21,7 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState<string | null>(null);
 
   // Permission Logic
   const isIT = user.role === 'it';
@@ -40,8 +40,10 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
         API.donations.getAll(),
         API.donations.projects.getAll()
       ]);
-      setDonations(d);
-      setProjects(p);
+      setDonations(d || []);
+      setProjects(p || []);
+    } catch (err) {
+      console.error("Ledger retrieval error:", err);
     } finally {
       setLoading(false);
     }
@@ -70,8 +72,8 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
 
   const filteredDonations = donations.filter(d => {
     const matchesFilter = filter === 'All' || d.status === filter;
-    const matchesSearch = d.donorName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          d.transactionId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (d.donorName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (d.transactionId || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -82,16 +84,16 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
     }
     if (!window.confirm(`Finalize verification for deposit of ${donation.amount.toLocaleString()} RWF?`)) return;
     
-    setIsSyncing(true);
+    setIsSyncing(donation.id);
     try {
       await API.donations.updateStatus(donation.id, 'Completed');
-      const project = projects.find(p => p.title === donation.project);
-      if (project) {
-        await API.donations.projects.update(project.id, { raised: project.raised + donation.amount });
-      }
+      // The backend now handles updating the project raised amount automatically.
       await fetchData();
+    } catch (err) {
+      console.error("Verification failed:", err);
+      alert("Stewardship synchronization error. Please check Kernel health.");
     } finally {
-      setIsSyncing(false);
+      setIsSyncing(null);
     }
   };
 
@@ -101,17 +103,16 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
       return;
     }
     if (!window.confirm('CRITICAL: Purge this record from the ledger permanently?')) return;
-    setIsSyncing(true);
     try {
       await API.donations.delete(id);
       await fetchData();
-    } finally {
-      setIsSyncing(false);
+    } catch (err) {
+      console.error("Purge failed:", err);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10 pb-20">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Total Recorded Flow', value: `${stats.total.toLocaleString()} RWF`, icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -164,22 +165,38 @@ const DonationTab: React.FC<DonationTabProps> = ({ user }) => {
                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${d.status === 'Completed' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500'}`}>{d.status}</span>
                   </td>
                   <td className="px-8 py-4 text-right space-x-2">
-                    {d.status === 'Pending' && canVerify ? (
-                      <button onClick={() => handleConfirmDonation(d)} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-100 active:scale-95 transition-all hover:bg-emerald-600">Finalize Pulse</button>
-                    ) : (d.status === 'Pending' && !canVerify && (
-                      <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest italic">Awaiting Accountant</span>
-                    ))}
+                    {d.status === 'Pending' && (
+                      canVerify ? (
+                        <button 
+                          onClick={() => handleConfirmDonation(d)} 
+                          disabled={isSyncing === d.id}
+                          className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-100 active:scale-95 transition-all hover:bg-emerald-600 flex items-center gap-2"
+                        >
+                          {isSyncing === d.id ? <Loader2 className="animate-spin" size={10}/> : null}
+                          Finalize Pulse
+                        </button>
+                      ) : (
+                        <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest italic">Awaiting Accountant</span>
+                      )
+                    )}
                     {canDelete && (
                       <button onClick={() => handleDeleteDonation(d.id)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
                     )}
                   </td>
                 </tr>
               ))}
-              {filteredDonations.length === 0 && (
+              {filteredDonations.length === 0 && !loading && (
                 <tr>
                   <td colSpan={4} className="py-32 text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200 mb-4"><Heart size={32} /></div>
                     <p className="text-gray-300 italic font-serif">No contribution sequences logged in this layer.</p>
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={4} className="py-20 text-center">
+                    <Loader2 className="animate-spin text-cyan-500 mx-auto" size={32} />
                   </td>
                 </tr>
               )}

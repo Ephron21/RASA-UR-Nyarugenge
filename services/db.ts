@@ -2,7 +2,7 @@
 import { 
   User, NewsItem, Leader, Announcement, Department, DepartmentInterest, ContactMessage, 
   HomeConfig, Donation, DonationProject, AboutConfig, FooterConfig,
-  DailyVerse, VerseReflection, BibleQuiz, QuizResult
+  DailyVerse, VerseReflection, BibleQuiz, QuizResult, RoleDefinition
 } from '../types';
 
 const DB_NAME = 'rasa_db';
@@ -10,6 +10,7 @@ const BACKUP_KEY = 'rasa_db_backups';
 
 interface DatabaseSchema {
   members: (User & { password?: string })[];
+  roles: RoleDefinition[];
   news: NewsItem[];
   leaders: Leader[];
   announcements: Announcement[];
@@ -52,6 +53,48 @@ const INITIAL_DATA: DatabaseSchema = {
       department: 'IT & Infrastructure', 
       createdAt: '1997-01-01',
       spiritPoints: 2500
+    }
+  ],
+  roles: [
+    {
+      id: 'it',
+      label: 'IT Specialist',
+      icon: 'Shield',
+      description: 'System-wide access and security administration.',
+      permissions: ['tab.overview', 'tab.profile', 'tab.home', 'tab.about', 'tab.footer', 'tab.spiritual', 'tab.members', 'tab.content', 'tab.bulletin', 'tab.depts', 'tab.leaders', 'tab.donations', 'tab.contacts', 'tab.system', 'tab.clearance', 'action.verify_donations', 'action.purge_finance', 'action.manage_roles', 'action.reset_db', 'action.edit_members'],
+      isSystem: true
+    },
+    {
+      id: 'executive',
+      label: 'EXCOM Member',
+      icon: 'Briefcase',
+      description: 'General management and ministry oversight.',
+      permissions: ['tab.overview', 'tab.profile', 'tab.home', 'tab.about', 'tab.footer', 'tab.spiritual', 'tab.members', 'tab.content', 'tab.bulletin', 'tab.depts', 'tab.leaders', 'tab.donations', 'tab.contacts'],
+      isSystem: true
+    },
+    {
+      id: 'accountant',
+      label: 'Accountant',
+      icon: 'Landmark',
+      description: 'Treasury and financial flow management.',
+      permissions: ['tab.overview', 'tab.profile', 'tab.donations', 'action.verify_donations'],
+      isSystem: true
+    },
+    {
+      id: 'secretary',
+      label: 'Secretary / Dept Lead',
+      icon: 'MessageSquare',
+      description: 'Communication and bulletin management.',
+      permissions: ['tab.overview', 'tab.profile', 'tab.content', 'tab.bulletin'],
+      isSystem: true
+    },
+    {
+      id: 'member',
+      label: 'Standard Member',
+      icon: 'User',
+      description: 'Default portal access for association members.',
+      permissions: ['tab.overview', 'tab.profile'],
+      isSystem: true
     }
   ],
   verses: [
@@ -135,7 +178,9 @@ const INITIAL_DATA: DatabaseSchema = {
     missionTitle: 'Our Mission',
     missionContent: 'To proclaim the Gospel of Jesus Christ among academicians...',
     values: [
-      { id: 'v1', title: 'Salvation', description: 'Total reliance on grace.', icon: 'Cross' },
+      { id: 'v1', title: 'Salvation (Agakiza)', description: 'Total reliance on God\'s grace for redemption and eternal life through Jesus Christ.', icon: 'Cross' },
+      { id: 'v2', title: 'Love (Urukundo)', description: 'Demonstrating unconditional Christ-like affection to the student body and beyond.', icon: 'Heart' },
+      { id: 'v3', title: 'Work (Umurimo)', description: 'A commitment to excellence in both academic pursuits and Kingdom service as unto the Lord.', icon: 'Zap' },
     ],
     timeline: [
       { id: 't1', year: '1997', title: 'The Genesis', description: 'RASA founded at UNR Butare campus.' },

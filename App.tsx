@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 // Fix framer-motion prop errors by casting motion to any
@@ -18,8 +19,10 @@ import Departments from './pages/Departments';
 import Donations from './pages/Donations';
 import About from './pages/About';
 import ProtectedRoute from './components/ProtectedRoute';
+import SacredToast from './components/SacredToast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { User, NewsItem, Leader, Announcement, Department, FooterConfig } from './types';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { User, NewsItem, Leader, Announcement, Department, FooterConfig, HomeConfig } from './types';
 import { API } from './services/api';
 import { DEPARTMENTS as INITIAL_DEPTS } from './constants';
 
@@ -31,6 +34,7 @@ const AppContent: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [footerConfig, setFooterConfig] = useState<FooterConfig | null>(null);
+  const [homeConfig, setHomeConfig] = useState<HomeConfig | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const location = useLocation();
 
@@ -42,16 +46,18 @@ const AppContent: React.FC = () => {
         API.members.getAll(),
         API.announcements.getAll(),
         API.departments.getAll(),
-        API.footer.getConfig()
+        API.footer.getConfig(),
+        API.home.getConfig()
       ]);
 
-      const [newsRes, leadersRes, membersRes, annRes, deptsRes, footerRes] = results;
+      const [newsRes, leadersRes, membersRes, annRes, deptsRes, footerRes, homeRes] = results;
 
       if (newsRes.status === 'fulfilled') setNews(newsRes.value || []);
       if (leadersRes.status === 'fulfilled') setLeaders(leadersRes.value || []);
       if (membersRes.status === 'fulfilled') setMembers(membersRes.value || []);
       if (annRes.status === 'fulfilled') setAnnouncements(annRes.value || []);
       if (footerRes.status === 'fulfilled') setFooterConfig(footerRes.value);
+      if (homeRes.status === 'fulfilled') setHomeConfig(homeRes.value);
       if (deptsRes.status === 'fulfilled') {
         setDepartments(deptsRes.value?.length ? deptsRes.value : INITIAL_DEPTS);
       }
@@ -117,13 +123,16 @@ const AppContent: React.FC = () => {
         </AnimatePresence>
       </main>
       <Footer departments={departments} config={footerConfig} />
+      <SacredToast />
     </div>
   );
 };
 
 const App: React.FC = () => (
   <AuthProvider>
-    <AppContent />
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
   </AuthProvider>
 );
 
