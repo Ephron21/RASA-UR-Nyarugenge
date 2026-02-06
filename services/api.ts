@@ -24,19 +24,17 @@ const hybridFetch = async (
     const res = await fetch(`${API_BASE_URL}/${endpoint}`, options);
     
     if (!res.ok) {
-      // ONLY use fallback for GET requests (reading data)
       if (method === 'GET' && fallbackAction) {
-        console.warn(`[RASA API] Server Error (${res.status}) for ${endpoint}. Fallback to LocalDB.`);
         return await fallbackAction();
       }
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || `Kernel Error: ${res.status}`);
     }
     
+    if (res.status === 204) return null;
     return await res.json();
   } catch (err: any) {
     if (method === 'GET' && fallbackAction) {
-      console.warn(`[RASA API] Kernel Offline. Using browser persistence layer.`);
       return await fallbackAction();
     }
     throw err;
@@ -77,6 +75,8 @@ export const API = {
         return qz.filter(q => q.isActive);
       }),
       create: (q: BibleQuiz) => hybridFetch('spiritual/quizzes', 'POST', q),
+      update: (id: string, updates: any) => hybridFetch(`spiritual/quizzes/${id}`, 'PUT', updates),
+      delete: (id: string) => hybridFetch(`spiritual/quizzes/${id}`, 'DELETE'),
       submitResult: (r: QuizResult) => hybridFetch('spiritual/quiz-results', 'POST', r),
       getResults: () => hybridFetch('spiritual/quiz-results', 'GET', null, () => db.getCollection('quizResults')),
     }

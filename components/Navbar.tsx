@@ -107,7 +107,11 @@ const Navbar: React.FC<NavbarProps> = ({ departments }) => {
                   <p className="text-[8px] font-black text-cyan-600 uppercase tracking-widest mt-0.5">{user.role}</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center text-white shadow-lg shadow-cyan-100 group-hover:scale-105 transition-all overflow-hidden border-2 border-white/50 relative">
-                  {user.profileImage ? <img src={user.profileImage} className="w-full h-full object-cover" alt="" /> : (user.role === 'it' ? <Shield size={18}/> : <UserIcon size={18} />)}
+                  {user.profileImage ? (
+                    <img src={user.profileImage} className="w-full h-full object-cover" alt="Profile" />
+                  ) : (
+                    user.role === 'it' ? <Shield size={18}/> : <UserIcon size={18} />
+                  )}
                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
               </Link>
